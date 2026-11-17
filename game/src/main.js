@@ -7,7 +7,7 @@
 // stages that scene instead of running the loop, paints it twice and sets
 // window.__shotReady for a screenshot.
 import * as THREE from 'three';
-import { STEP } from './config.js';
+import { DAY, STEP } from './config.js';
 import { createRandom } from './random.js';
 import { createInput } from './input.js';
 import { createAudio } from './audio.js';
@@ -29,6 +29,9 @@ const params = new URLSearchParams(window.location.search);
 const shot = params.get('shot');
 const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
 const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
+// ?tod=H stages a time of day (0-24) for screenshots, e.g. ?shot=chase&tod=18.5
+// for a dusk chase. The day/night cycle runs off it from there.
+const todParam = Number.parseFloat(params.get('tod') ?? '');
 
 // The shared game object every system reads and writes.
 const G = {
@@ -47,6 +50,9 @@ const G = {
   lastMouseAt: -100,
   hasSave: false,
   shotMode: shot !== null,
+  dayOffsetSec: Number.isFinite(todParam)
+    ? ((((todParam - DAY.startHour) % 24) + 24) % 24) / 24 * DAY.lengthSec
+    : 0,
 };
 window.__game = G;
 

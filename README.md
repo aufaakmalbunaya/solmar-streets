@@ -4,7 +4,7 @@
 [![rank](https://make.fun/badge/gta6-01/aufaakmalbunaya/solmar-streets/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 [![reward](https://make.fun/badge/gta6-01/aufaakmalbunaya/solmar-streets/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
-Solmar Streets is an open-world crime game set in Solmar, a sun-soaked coastal city. Jax Moreno returns home in debt to Mama Rosa, and takes her jobs across the city while Detective Voss and the Solmar PD hunt him. The game has a procedural city to explore on foot and by car, traffic and pedestrians, cars to steal, a five-star wanted system with police pursuit, a five-mission story chain, pistol combat, a HUD with a live minimap, synthesised sound and music, and a save that keeps your progress.
+Solmar Streets is an open-world crime game set in Solmar, a sun-soaked coastal city. Jax Moreno returns home in debt to Mama Rosa, and takes her jobs across the city while Detective Voss and the Solmar PD hunt him. The game has a procedural city to explore on foot and by car, traffic and pedestrians, cars to steal, a five-star wanted system with police pursuit, a five-mission story chain, pistol combat, a day/night cycle with a HUD clock, a HUD with a live minimap, synthesised sound and music, and a save that keeps your progress.
 
 ## Run it
 

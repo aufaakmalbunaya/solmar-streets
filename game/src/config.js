@@ -3,6 +3,15 @@
 // between them. South of the city (high +z) is a beach and the ocean.
 export const STEP = 1 / 60;
 
+// The day/night cycle: one full 24-hour day passes in 10 real minutes, and
+// the game opens at 09:00. Sunrise 06:00, sunset 18:00.
+export const DAY = {
+  lengthSec: 600,
+  startHour: 9,
+  sunrise: 6,
+  sunset: 18,
+};
+
 export const CITY = {
   pitch: 52,
   roadW: 12,

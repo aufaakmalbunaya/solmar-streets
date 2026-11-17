@@ -10,6 +10,7 @@ export function createHud(G) {
     healthFill: $('health-fill'),
     healthText: $('health-text'),
     stars: $('stars'),
+    clock: $('clock'),
     cash: $('cash'),
     objectiveTitle: $('objective-title'),
     objectiveText: $('objective-text'),
@@ -147,6 +148,10 @@ export function createHud(G) {
     hud.healthText.textContent = `${health}`;
     hud.stars.textContent = '★'.repeat(G.wanted) + '☆'.repeat(5 - G.wanted);
     hud.stars.classList.toggle('hot', G.wanted > 0);
+    // The clock: sun by day, half sun at dawn and dusk, moon at night.
+    const clock = G.city.clock;
+    const mark = clock.label === 'Night' ? '☾' : clock.label === 'Day' ? '☀' : '◐';
+    hud.clock.textContent = `${mark} ${String(clock.hour).padStart(2, '0')}:${String(clock.minute).padStart(2, '0')} ${clock.label}`;
     hud.cash.textContent = `$${G.cash.toLocaleString('en-US')}`;
     const objective = G.missions.currentObjective();
     hud.objectiveTitle.textContent = objective.title;

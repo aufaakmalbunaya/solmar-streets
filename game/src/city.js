@@ -3,7 +3,7 @@
 // ocean), and the buildings, palms, streetlights, pier and docks are simple meshes
 // on top. The module also owns the building colliders the cars and the player use.
 import * as THREE from 'three';
-import { CITY, PALETTE } from './config.js';
+import { CITY, DAY, PALETTE } from './config.js';
 import { int, pick, range } from './random.js';
 
 const WORLD_MIN = -190;
@@ -145,6 +145,21 @@ export function buildCity(G) {
   );
   sunBall.position.set(300, 210, 180);
   scene.add(sunBall);
+  // The moon: a pale ball that takes the sun's place after dark.
+  const moonBall = new THREE.Mesh(
+    new THREE.SphereGeometry(7, 12, 12),
+    new THREE.MeshBasicMaterial({ color: 0xdfe8f2, fog: false }),
+  );
+  moonBall.position.set(-300, 210, -180);
+  moonBall.visible = false;
+  scene.add(moonBall);
+  // Keep the lights and lamps the day/night cycle drives.
+  city.hemi = hemi;
+  city.sun = sun;
+  city.sunBall = sunBall;
+  city.moonBall = moonBall;
+  // The clock the HUD reads: hour, minute and a day/dusk/night label.
+  city.clock = { hour: DAY.startHour, minute: 0, label: 'Day' };
 
   // Ground.
   const [groundCanvas, groundCtx] = makeCanvas(1024, 1024);
@@ -332,6 +347,7 @@ export function buildCity(G) {
   }
   const poleMat = new THREE.MeshLambertMaterial({ color: 0x3a3d42 });
   const lampMat = new THREE.MeshLambertMaterial({ color: 0xfff2b0, emissive: 0x554411 });
+  city.lampMat = lampMat;
   for (const cx of CITY.roads) {
     for (const cz of CITY.roads) {
       if (rng() < 0.4) continue;
@@ -346,6 +362,7 @@ export function buildCity(G) {
 
   // Clouds: flattened white blobs drifting slowly.
   const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  city.cloudMat = cloudMat;
   for (let i = 0; i < 9; i += 1) {
     const cloud = new THREE.Group();
     const puffs = int(rng, 2, 4);
@@ -377,7 +394,47 @@ export function buildCity(G) {
     }
   }
 
+  // Sky colours the cycle blends between: day blue, dusk orange, night blue.
+  const skyDay = new THREE.Color(PALETTE.sky);
+  const skyNight = new THREE.Color(0x0b1626);
+  const skyDusk = new THREE.Color(0xff9a5c);
+  const skyNow = new THREE.Color(PALETTE.sky);
+  const lampDay = new THREE.Color(0x554411);
+  const lampNight = new THREE.Color(0xffe9a0);
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
   city.update = (dt, time) => {
+    // The day/night cycle: the clock runs on game time plus any ?tod= offset
+    // the URL staged. One full day takes DAY.lengthSec real seconds.
+    const t = time + (G.dayOffsetSec || 0);
+    const hour = (DAY.startHour + (t / DAY.lengthSec) * 24) % 24;
+    // Sun elevation: 0 at sunrise (06:00) and sunset (18:00), 1 at noon,
+    // negative at night.
+    const elev = Math.sin(Math.PI * (hour - DAY.sunrise) / (DAY.sunset - DAY.sunrise));
+    const dayFactor = clamp01(0.15 + elev * 1.2);
+    const duskFactor = clamp01(1 - Math.abs(elev) * 2.5);
+    // Sky: night blue up through day blue, then toward orange at dusk.
+    skyNow.copy(skyNight).lerp(skyDay, dayFactor).lerp(skyDusk, duskFactor * 0.55);
+    scene.background.copy(skyNow);
+    scene.fog.color.copy(skyNow);
+    city.hemi.intensity = 0.35 + 0.6 * dayFactor;
+    city.sun.intensity = 0.12 + 1.5 * dayFactor;
+    // The sun arcs across the sky; the moon takes the opposite side at night.
+    const az = ((hour - DAY.sunrise) / 24) * Math.PI * 2;
+    city.sun.position.set(Math.cos(az) * 240, 40 + Math.max(0, elev) * 220, Math.sin(az) * 160);
+    city.sunBall.visible = elev > -0.05;
+    city.sunBall.position.set(Math.cos(az) * 380, Math.max(25, elev * 320), Math.sin(az) * 300);
+    city.sunBall.material.color.setHex(duskFactor > 0.5 ? 0xff8a4a : 0xfff6c9);
+    city.moonBall.visible = elev < 0.05;
+    city.moonBall.position.set(-Math.cos(az) * 380, Math.max(60, -elev * 320 + 40), -Math.sin(az) * 300);
+    // Street lamps glow after dark; clouds fade with the light.
+    city.lampMat.emissive.copy(lampDay).lerp(lampNight, 1 - dayFactor);
+    city.cloudMat.opacity = 0.25 + 0.65 * dayFactor;
+    city.clock.hour = Math.floor(hour);
+    city.clock.minute = Math.floor((hour - Math.floor(hour)) * 60);
+    city.clock.label = elev > 0.3 ? 'Day'
+      : elev > -0.12 ? (hour < 12 ? 'Dawn' : 'Dusk') : 'Night';
+
     for (const cloud of city.clouds) {
       cloud.position.x += dt * 1.2;
       if (cloud.position.x > 260) cloud.position.x = -260;
