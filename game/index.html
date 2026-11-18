@@ -29,6 +29,11 @@
   #minimap { width: 200px; height: 200px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35);
     background: #2e7fb8; display: block; }
   #speed { font-size: 20px; font-weight: 700; margin-top: 6px; text-shadow: 0 1px 4px rgba(0,0,0,0.7); }
+  #radio { font-size: 13px; font-weight: 600; color: #ffb347; margin-top: 2px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+  #nos-bar { height: 8px; width: 200px; margin: 6px 0 0 auto; background: rgba(255,255,255,0.18);
+    border-radius: 4px; overflow: hidden; }
+  #nos-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #4fa8ff, #aee2ff); }
+  #nos-label { font-size: 11px; color: #aee2ff; text-align: right; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
   #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px;
     display: none; }
   #crosshair.show { display: block; }
@@ -80,6 +85,7 @@
     <div id="cash">$100</div>
     <div id="health-bar"><div id="health-fill"></div></div>
     <div><span id="health-text">100</span> HP</div>
+    <div id="weapon">No weapon yet</div>
     <div id="stars">☆☆☆☆☆</div>
     <div id="clock">☀ 09:00</div>
   </div>
@@ -90,6 +96,9 @@
   <div id="minimap-wrap">
     <canvas id="minimap" width="200" height="200"></canvas>
     <div id="speed">0 km/h</div>
+    <div id="radio">♪ SOLMAR FM</div>
+    <div id="nos-bar"><div id="nos-fill"></div></div>
+    <div id="nos-label">NOS — hold Shift</div>
   </div>
   <div id="crosshair"></div>
   <div id="toast"></div>
@@ -106,8 +115,9 @@
     <p>Jax Moreno is back in Solmar after five years away — and back in debt to Mama Rosa,
     the fixer who runs the old neighbourhood. Take her jobs, drive her streets, dodge
     Detective Voss and the Solmar PD, and take the city back from the Lobos.</p>
-    <p class="controls">WASD move · Shift sprint · Mouse drag to look · E enter / leave car · F punch ·
-    Click shoot (after the first job) · R reload · Space handbrake · P pause · M mute</p>
+    <p class="controls">WASD move · Shift sprint / NOS in a car · Mouse drag to look · E enter / leave car ·
+    F punch · Click shoot (after the first job) · 1/2/3 switch weapon · R reload · Q car radio ·
+    Space handbrake · P pause · M mute</p>
     <button id="btn-start" type="button">Start new game</button>
     <button id="btn-continue" type="button" class="secondary">Continue</button>
   </div>

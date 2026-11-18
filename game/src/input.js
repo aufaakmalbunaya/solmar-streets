@@ -33,9 +33,12 @@ export function createInput(canvas) {
     input.mouseDown = true;
     input.dragging = true;
     // Pointer lock gives smooth mouse-look while playing; dragging still works
-    // when the lock is refused (headless browsers, iframes).
+    // when the lock is refused (headless browsers, iframes). requestPointerLock
+    // returns a promise in newer browsers: a refusal is an async rejection,
+    // not a sync throw, so catch that too or it surfaces as an uncaught error.
     try {
-      canvas.requestPointerLock();
+      const lock = canvas.requestPointerLock();
+      if (lock && typeof lock.catch === 'function') lock.catch(() => {});
     } catch {
       // No pointer lock here; drag-look is the fallback.
     }

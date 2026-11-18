@@ -10,11 +10,16 @@ export function createHud(G) {
     healthFill: $('health-fill'),
     healthText: $('health-text'),
     stars: $('stars'),
+    weapon: $('weapon'),
     clock: $('clock'),
     cash: $('cash'),
     objectiveTitle: $('objective-title'),
     objectiveText: $('objective-text'),
     speed: $('speed'),
+    radio: $('radio'),
+    nosBar: $('nos-bar'),
+    nosFill: $('nos-fill'),
+    nosLabel: $('nos-label'),
     crosshair: $('crosshair'),
     toastEl: $('toast'),
     dialogueEl: $('dialogue'),
@@ -100,6 +105,20 @@ export function createHud(G) {
       ctx.arc(toX(car.pos.x), toY(car.pos.z), 3, 0, Math.PI * 2);
       ctx.fill();
     }
+    // Roadblocks: red squares. Helicopter: a yellow ring.
+    ctx.fillStyle = '#ff2a2a';
+    for (const block of G.police.roadblocks) {
+      ctx.fillRect(toX(block.pos.x) - 3, toY(block.pos.z) - 3, 6, 6);
+    }
+    if (G.police.heli) {
+      const hx = toX(G.police.heli.group.position.x);
+      const hy = toY(G.police.heli.group.position.z);
+      ctx.strokeStyle = '#ffd23c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     for (const enemy of G.combat.enemies) {
       if (enemy.dead) continue;
       ctx.fillStyle = '#ff4a3a';
@@ -146,6 +165,19 @@ export function createHud(G) {
     const health = Math.max(0, Math.round(G.player.health));
     hud.healthFill.style.width = `${health}%`;
     hud.healthText.textContent = `${health}`;
+    if (!G.hasPistol) {
+      hud.weapon.textContent = 'No weapon yet';
+    } else {
+      const def = G.combat.currentWeapon();
+      const state = G.combat.weapons[G.combat.weapon];
+      const labelOf = { pistol: 'Pistol', smg: 'SMG', shotgun: 'Shotgun' };
+      const keyOf = { pistol: '1', smg: '2', shotgun: '3' };
+      const unlocked = ['pistol', 'smg', 'shotgun']
+        .filter((name) => G.combat.weapons[name].unlocked)
+        .map((name) => `${keyOf[name]} ${labelOf[name]}`)
+        .join(' · ');
+      hud.weapon.textContent = `${def.name} · ${state.ammo}/${def.magazine} — ${unlocked}`;
+    }
     hud.stars.textContent = '★'.repeat(G.wanted) + '☆'.repeat(5 - G.wanted);
     hud.stars.classList.toggle('hot', G.wanted > 0);
     // The clock: sun by day, half sun at dawn and dusk, moon at night.
@@ -158,10 +190,17 @@ export function createHud(G) {
     hud.objectiveText.textContent = objective.text;
     const speed = G.player.car ? Math.abs(G.player.car.speed) * 3.6 : Math.abs(G.player.speed) * 3.6;
     hud.speed.textContent = `${Math.round(speed)} km/h`;
+    // The radio and the NOS gauge only show while driving.
+    const driving = !!G.player.car;
+    hud.radio.style.display = driving ? '' : 'none';
+    if (driving) hud.radio.textContent = `♪ ${G.audio.stationName()} — ${G.audio.stationTag()}`;
+    hud.nosBar.style.display = driving ? '' : 'none';
+    hud.nosLabel.style.display = driving ? '' : 'none';
+    if (driving) hud.nosFill.style.width = `${Math.round(G.player.nos)}%`;
     hud.crosshair.classList.toggle('show', G.hasPistol && G.screen === 'playing');
     hud.hint.textContent = G.player.car
-      ? 'W/S drive · A/D steer · Space handbrake · E leave car · P pause · M mute'
-      : 'WASD move · Shift sprint · E enter car · F punch · Click shoot · P pause · M mute';
+      ? 'W/S drive · A/D steer · Shift NOS · Space handbrake · E leave car · Q radio · P pause · M mute'
+      : 'WASD move · Shift sprint · E enter car · F punch · Click shoot · 1/2/3 weapons · R reload · P pause · M mute';
     if (G.screen === 'playing') drawMinimap();
   };
 

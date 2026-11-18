@@ -1,8 +1,13 @@
-// Combat: the pistol (earned after the first job), punching, and the armed
-// enemies the later missions send at Jax. Shooting is hitscan from the camera
-// through the crosshair; enemies answer with slow, inaccurate fire.
+// Combat: the weapon rack, punching, and the armed enemies the later
+// missions send at Jax. Shooting is hitscan from the camera through the
+// crosshair; enemies answer with slow, inaccurate fire.
+//
+// Weapons: the pistol is earned after the first job, the SMG after job 3,
+// the shotgun after job 6. Keys 1/2/3 switch between the unlocked ones, R
+// reloads the one in hand. The shotgun fires five pellets in a spread; the
+// SMG fires fast with a small spread; the pistol is the steady middle.
 import * as THREE from 'three';
-import { PISTOL } from './config.js';
+import { WEAPONS } from './config.js';
 import { buildCharacter } from './player.js';
 import { resolveCircle } from './city.js';
 import { pick, range } from './random.js';
@@ -16,6 +21,80 @@ export function createCombat(G) {
     tracers: [],
     fireCooldown: 0,
     reloadTimer: 0,
+    weapon: 'pistol',
+    weapons: {
+      pistol: { unlocked: true, ammo: 0 },
+      smg: { unlocked: false, ammo: 0 },
+      shotgun: { unlocked: false, ammo: 0 },
+    },
+  };
+
+  // A fresh game starts with no weapons at all; the pistol comes with job 1.
+  combat.resetWeapons = () => {
+    combat.weapon = 'pistol';
+    combat.weapons.pistol = { unlocked: true, ammo: 0 };
+    combat.weapons.smg = { unlocked: false, ammo: 0 };
+    combat.weapons.shotgun = { unlocked: false, ammo: 0 };
+    combat.reloadTimer = 0;
+    combat.syncAmmo();
+  };
+
+  // Story progress unlocks weapons: finishing job 3 earns the SMG, job 6
+  // the shotgun. missionIndex is the next job to play, so it also counts
+  // the jobs already done when a save is loaded.
+  combat.unlockForProgress = (missionIndex) => {
+    if (missionIndex >= 3 && !combat.weapons.smg.unlocked) {
+      combat.weapons.smg.unlocked = true;
+      combat.weapons.smg.ammo = WEAPONS.smg.magazine;
+      G.hud.toast('New weapon: SMG — press 2 to switch');
+    }
+    if (missionIndex >= 6 && !combat.weapons.shotgun.unlocked) {
+      combat.weapons.shotgun.unlocked = true;
+      combat.weapons.shotgun.ammo = WEAPONS.shotgun.magazine;
+      G.hud.toast('New weapon: Shotgun — press 3 to switch');
+    }
+  };
+
+  combat.restoreWeapons = (saved) => {
+    if (!saved || typeof saved !== 'object') return;
+    for (const name of ['pistol', 'smg', 'shotgun']) {
+      const s = saved[name];
+      if (!s) continue;
+      combat.weapons[name].unlocked = !!s.unlocked;
+      combat.weapons[name].ammo = Math.max(0, Math.floor(s.ammo ?? 0));
+    }
+    if (saved.weapon && combat.weapons[saved.weapon]?.unlocked) combat.weapon = saved.weapon;
+    combat.syncAmmo();
+  };
+
+  combat.saveWeapons = () => ({
+    weapon: combat.weapon,
+    pistol: { ...combat.weapons.pistol },
+    smg: { ...combat.weapons.smg },
+    shotgun: { ...combat.weapons.shotgun },
+  });
+
+  // G.ammo always mirrors the weapon in hand, so the HUD and the save keep
+  // working the way they did when the pistol was the only weapon.
+  combat.syncAmmo = () => {
+    G.ammo = combat.weapons[combat.weapon].ammo;
+  };
+
+  combat.currentWeapon = () => WEAPONS[combat.weapon];
+
+  combat.selectWeapon = (name) => {
+    const state = combat.weapons[name];
+    if (!state || !state.unlocked) {
+      if (name === 'smg') G.hud.toast('SMG locked — finish job 3 first.');
+      if (name === 'shotgun') G.hud.toast('Shotgun locked — finish job 6 first.');
+      return;
+    }
+    if (combat.weapon === name) return;
+    combat.weapon = name;
+    combat.reloadTimer = 0;
+    combat.syncAmmo();
+    G.hud.toast(`${WEAPONS[name].name} ready — ${state.ammo} in the mag`);
+    G.audio.pickup();
   };
 
   function makeTracer(from, to, color) {
@@ -71,32 +150,16 @@ export function createCombat(G) {
       .add(new THREE.Vector3(0, -0.25, 0));
   }
 
-  combat.shoot = () => {
-    if (!G.hasPistol) {
-      G.hud.toast('No pistol yet — finish Mama Rosa’s first job.');
-      return;
-    }
-    if (combat.fireCooldown > 0 || combat.reloadTimer > 0) return;
-    if (G.ammo <= 0) {
-      G.hud.toast('Out of ammo — press R to reload.');
-      return;
-    }
-    combat.fireCooldown = PISTOL.fireInterval;
-    G.ammo -= 1;
-    G.audio.gunshot();
-    G.lastShotAt = G.time;
-    const forward = new THREE.Vector3();
-    G.camera.getWorldDirection(forward);
-    const muzzle = muzzlePoint();
-    // Nearest enemy roughly under the crosshair wins the shot.
+  // One pellet: the nearest living enemy near the given aim direction.
+  function firePellet(forward, muzzle, def) {
     let best = null;
-    let bestDist = PISTOL.range;
-    let bestAngle = 0.09;
+    let bestDist = def.range;
+    let bestAngle = 0.09 + def.spread * 2;
     for (const enemy of combat.enemies) {
       if (enemy.dead) continue;
       const to = new THREE.Vector3(enemy.pos.x, 1.3, enemy.pos.z).sub(G.camera.position);
       const dist = to.length();
-      if (dist > PISTOL.range) continue;
+      if (dist > def.range) continue;
       const angle = forward.angleTo(to.normalize());
       if (angle < bestAngle && dist < bestDist) {
         best = enemy;
@@ -117,9 +180,47 @@ export function createCombat(G) {
         G.hud.toast(best.boss ? 'Boss down — +$20' : 'Lobo down — +$20');
         G.missions.onKill();
       }
-    } else {
-      const end = muzzle.clone().addScaledVector(forward, PISTOL.range);
-      makeTracer(muzzle, end, 0xffe08a);
+      return true;
+    }
+    const end = muzzle.clone().addScaledVector(forward, def.range);
+    makeTracer(muzzle, end, 0xffe08a);
+    return false;
+  }
+
+  combat.shoot = () => {
+    if (!G.hasPistol) {
+      G.hud.toast('No pistol yet — finish Mama Rosa’s first job.');
+      return;
+    }
+    if (combat.fireCooldown > 0 || combat.reloadTimer > 0) return;
+    const def = WEAPONS[combat.weapon];
+    const state = combat.weapons[combat.weapon];
+    if (state.ammo <= 0) {
+      G.hud.toast('Out of ammo — press R to reload.');
+      return;
+    }
+    combat.fireCooldown = def.fireInterval;
+    state.ammo -= 1;
+    combat.syncAmmo();
+    if (combat.weapon === 'smg') G.audio.smgShot();
+    else if (combat.weapon === 'shotgun') G.audio.shotgunBlast();
+    else G.audio.gunshot();
+    G.lastShotAt = G.time;
+    const baseForward = new THREE.Vector3();
+    G.camera.getWorldDirection(baseForward);
+    const muzzle = muzzlePoint();
+    // The shotgun fires a spread of pellets; the rest fire one shot.
+    for (let p = 0; p < def.pellets; p += 1) {
+      const forward = baseForward.clone();
+      if (def.spread > 0) {
+        const right = new THREE.Vector3().crossVectors(forward, G.camera.up).normalize();
+        const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+        forward
+          .addScaledVector(right, (rng() - 0.5) * 2 * def.spread)
+          .addScaledVector(up, (rng() - 0.5) * 2 * def.spread)
+          .normalize();
+      }
+      firePellet(forward, muzzle, def);
     }
     // Firing where the police can see it draws the heat.
     let policeNear = false;
@@ -163,7 +264,9 @@ export function createCombat(G) {
   };
 
   combat.reload = () => {
-    if (!G.hasPistol || G.ammo >= PISTOL.magazine || combat.reloadTimer > 0) return;
+    const def = WEAPONS[combat.weapon];
+    const state = combat.weapons[combat.weapon];
+    if (!G.hasPistol || state.ammo >= def.magazine || combat.reloadTimer > 0) return;
     combat.reloadTimer = 0.6;
     G.hud.toast('Reloading…');
   };
@@ -173,7 +276,9 @@ export function createCombat(G) {
     if (combat.reloadTimer > 0) {
       combat.reloadTimer -= dt;
       if (combat.reloadTimer <= 0) {
-        G.ammo = PISTOL.magazine;
+        const def = WEAPONS[combat.weapon];
+        combat.weapons[combat.weapon].ammo = def.magazine;
+        combat.syncAmmo();
         G.audio.pickup();
       }
     }

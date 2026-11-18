@@ -1,4 +1,4 @@
-# Solmar Streets — round 2 for make.fun gta6-01 "Make GTA 6"
+# Solmar Streets — round 3 for make.fun gta6-01 "Make GTA 6"
 
 Bounty: gta6-01 "Make GTA 6", $1,666 in USDC, entries close 24 Nov 2026 22:00 WIB
 (15:00 UTC), result due 10 Dec 2026. Account @ugm, payout wallet
@@ -8,29 +8,38 @@ https://github.com/aufaakmalbunaya/solmar-streets, local copy
 head-to-head on the dossier plus a contact sheet of the screenshots, so
 completeness and visible polish in the screenshots matter most.
 
-## What round 1 left us
+## What round 2 left us
 
-Round 1 scored 28 of 29 checks. The one failure was transcripts_witnessed:
-this file already existed with its final content when the recording began, so
-the recorded agent wrote no line of it. The fix is this file itself: it was
-deleted and rewritten from scratch inside the round 2 recorded session, so
-every line of it is witnessed. Round 1 submission 01a1eac7, claim code
-AF-N13HJ, is dead. Round 1 also scored thinking_reproduces 99.0%.
+Round 2 (commit ec4091d, submission 01a1eaec) is SCORED with judge win rate
+97.9975%, rank #3563 of 4,510. The top entry is at 99.3343%. The gap to the
+top 100 is large, so round 3 must add real, judge-visible completeness, not
+polish alone. What the top entries have that Solmar Streets lacks: 7-12 story
+missions, 5-star police with helicopter chases and roadblocks, car radio,
+shops/safehouses/garages, multiple weapons, NOS boost, car theft,
+16 districts, chase camera. Solmar Streets already has a 5-mission story, a
+save system, and a day/night cycle.
 
-## The game as it stands
+## The game as it stands (after round 3)
 
 Solmar Streets is a 3D open-world crime game in a procedural coastal city,
 built on three.js (vendored under game/vendor/, no network requests, static
 files only, keyboard + mouse). Jax Moreno returns to Solmar in debt to Mama
-Rosa and works five story jobs for her: First Errand (meet her at Café
+Rosa and works eight story jobs for her: First Errand (meet her at Café
 Solmar), Hot Wheels (steal a yellow coupe, deliver it to the east garage),
 Lobo Trouble (take out 3 Lobos at the docks), The Getaway (grab a package at
-the marina, lose the police, deliver it), and Voss's Trap (defeat 6 Lobos on
-the pier). The city has a road grid, traffic and pedestrians, cars to steal,
-a 5-star wanted system with pursuit cars and officers on foot, pistol combat
-(click to shoot, R reload, F punch), a HUD with health, cash, wanted stars,
-mission objective, speedometer and a live minimap, synthesised sound and
-music, a start screen, and a localStorage save with autosave.
+the marina, lose the police, deliver it), Voss's Trap (defeat 6 Lobos on the
+pier), The Stash (recover Rosa's money at the docks, lose the heat, bring it
+home), Harbor Heat (clear 4 Lobos from the marina), and The Voss File (a
+timed 75-second run to the pier at 3 stars). The city has a road grid,
+traffic and pedestrians, cars to steal, a 5-star wanted system with pursuit
+cars, officers on foot, roadblocks from 3 stars and a police helicopter with
+a searchlight from 4 stars, pistol/SMG/shotgun combat (SMG after job 3,
+shotgun after job 6, keys 1/2/3), an NOS boost (hold Shift while driving),
+a three-station synthesised car radio (Q cycles SOLMAR FM, LOBOS ROCK,
+MARINA NIGHTS), a HUD with health, cash, wanted stars, weapon, radio, NOS
+gauge, mission objective, speedometer and a live minimap (with helicopter
+and roadblock blips), a day/night cycle with a HUD clock, synthesised sound
+and music, a start screen, and a localStorage save with autosave.
 
 Entry shape at the repo root: main.ts (Node 22, standard library only) copies
 game/ and screenshots/ to /output and writes /output/dossier.json with
@@ -38,7 +47,8 @@ buildDossier from vendor/makefun-game.ts. serve.ts serves game/ on
 http://localhost:8080 for playtesting. shots.json lists the four staged
 screenshots; game/src/shots.js stages them deterministically from a seed:
 1-start.jpg (title over the city), 2-drive.jpg (driving through traffic),
-3-chase.jpg (3-star police chase), 4-mission.jpg (dock shootout).
+3-chase.jpg (4-star chase: pursuit cars, roadblock, helicopter, radio, NOS),
+4-mission.jpg (job 7 marina shootout, SMG in hand).
 
 Hard caps: at most 4 screenshots, each at most 256 KiB, long side at most
 1280, short side at least 480; game/ at most 993 files and 48 MiB; main.ts
@@ -50,62 +60,71 @@ README template, repo About text, entry-message template, quota 5/day,
 max_total 10) and ~/workspace/makefun/gta6-01-kit/gta6-01-kit/RULES.txt plus
 competition.yaml.
 
-## Round 2 work: one real improvement — a day/night cycle
+## Round 3 work: police escalation, three more jobs, radio, weapons, NOS
 
-Add a full day/night cycle to Solmar, the one big GTA-style system the game
-still lacks:
+In priority order:
 
-- game/src/config.js: a DAY table — a full 24-hour day passes in 600 real
-  seconds, and the game opens at 09:00.
-- game/src/city.js: the sun, moon, sky, fog, hemisphere light and street
-  lamps all follow the clock. Sunrise 06:00, sunset 18:00. The sky blends
-  from day blue through orange dusk to deep night blue; the sun light fades
-  from 1.6 to about 0.1 and the hemisphere light from about 0.95 to about
-  0.35, so night is dark but still playable; street-lamp emissive brightens
-  after dark; clouds fade at night; a pale moon replaces the sun ball at
-  night. The city exposes city.clock with the current hour, minute and a
-  day/dusk/night label.
-- game/index.html + game/src/hud.js: a clock readout in the stats panel
-  showing the time and a sun/dusk/moon mark.
-- game/src/main.js: a ?tod=H query parameter stages a time of day, so a
-  screenshot can be taken at dusk, e.g. ?shot=chase&seed=1&tod=18.5.
-- screenshots/3-chase.jpg: retake it at dusk with headless Chromium
-  (Playwright chromium-1243 is cached in ~/.cache/ms-playwright) to show the
-  cycle, the police light bars and the HUD clock in one frame. Keep 4
-  screenshots total, each under 256 KiB. The other three stay as they are:
-  the cycle moves only about a quarter of a game hour during a 5–6 s staged
-  scene, so the morning scenes do not change.
+1. game/src/police.js + game/src/config.js: 5-star escalation. Roadblocks
+   from 3 stars (two police cars parked across the road ahead of Jax, lights
+   flashing, real collision; a second block at 5 stars; a block Jax drives
+   past moves ahead again). Police helicopter from 4 stars: a box-built heli
+   circling above Jax with a spinning rotor and a searchlight cone on the
+   ground; while it is up, hiding to cool the heat takes a longer distance
+   (90 m instead of 48 m). Minimap shows roadblocks as red squares and the
+   helicopter as a yellow ring.
+2. game/src/missions.js: three more jobs (8 total). Job 6 The Stash
+   (deliver: grab the stash at the docks, lose the heat, bring it to the
+   café, $1200). Job 7 Harbor Heat (kill 4 Lobos at the marina, $1800).
+   Job 8 The Voss File (new timed type: reach the pier in 75 seconds at
+   3 stars, $2500; running out of time fails the job and it must be tried
+   again). The story screen now comes after job 8.
+3. game/src/audio.js + game/src/hud.js + game/index.html: car radio. Three
+   synthesised stations (SOLMAR FM, LOBOS ROCK, MARINA NIGHTS), each its own
+   chord loop, wave and tempo; Q cycles stations; the HUD shows the station
+   while driving. No audio files, no network.
+4. game/src/combat.js + game/src/config.js + game/src/vehicles.js: weapon
+   variety and NOS. Pistol, SMG (fast, 30-round mag, unlocked after job 3),
+   shotgun (5 pellets, spread, unlocked after job 6); keys 1/2/3 switch,
+   R reloads, ammo per weapon, HUD shows the weapon and its ammo. NOS: hold
+   Shift while driving for harder accel and a 52 top speed, draining a tank
+   that refills slowly; a blue flame shows at the exhaust and the HUD has a
+   NOS gauge.
+5. game/src/shots.js + screenshots/: retake 3-chase.jpg at 4 stars (dusk)
+   and 4-mission.jpg at the job 7 marina shootout, as real renders of the
+   game's own code. Keep 4 screenshots total, each under 256 KiB.
 
-Keep the change focused: one system only, no other gameplay changes. The
-existing jobs, missions, police behaviour and save format must keep working
-unchanged.
+Keep the change focused on these five items. The existing jobs, missions,
+police behaviour and save format must keep working: saves gain a weapons
+field (version 2) and load old saves too.
 
 ## Verify before committing
 
 1. Serve with `node serve.ts` and playtest in headless Chromium: load the
    game with no console errors and no network requests, start a game, and
-   confirm the clock advances, the sky darkens toward night, and the lamps
-   brighten. Exercise the new feature through the ?tod= parameter and through
-   real elapsed time.
+   confirm the helicopter and roadblock appear at 4 stars, the radio cycles
+   stations, the weapons switch, NOS boosts the car, and jobs 6-8 play.
+   Exercise the new features through the ?shot= scenes and through real play.
 2. Confirm no regressions: drive, steal a car, start a mission, raise the
    wanted level. Run main.ts twice into separate dirs and diff the outputs.
-3. Run the kit's grade-local if it works here
-   (from the kit dir: node cli/makefun.mjs grade-local --kit . --bot <repo>
-   --driver process --worktree) and report its output.
+3. Run the kit check locally if it runs here
+   (from the kit dir: node cli/makefun.mjs check --repo <repo>) and
+   bundle --dry-run to confirm the sessions are found, and report the output.
 
 ## Commit and push
 
 Push helper: ~/workspace/makefun/ghpush-solmar.py — read it first and reuse
 its Git Data API push method (the gh CLI is NOT logged in). Commit message:
-"Solmar Streets round 2: day/night cycle, witnessed TASK-PROMPT rewrite".
-Report the new commit SHA.
+"Solmar Streets round 3: helicopter + roadblocks, 3 more jobs, radio, weapons, NOS".
+Do NOT bundle, check-submit, or submit the entry — the parent bundles,
+checks, and submits. Report the new commit SHA and the recording id.
 
 ## Hard limits
 
-A recording (ID 01a1eace-5645-7007-971d-085760357640) is already running and
-watching Muse app sessions. Do NOT start, stop, or restart any recording.
-Do NOT run any makefun record/bundle/check/submit command, and do NOT submit
-the entry — the parent bundles, checks, and submits. Do NOT touch the
+A recording (ID 01a1ee3a-62fd-71a9-9486-6fe37e035733) is already running and
+watching Muse app sessions. Do NOT start, stop, or restart any recording
+until the build is done, then stop it and report its id. Do NOT run any
+makefun record/bundle/check/submit command except the check and bundle
+--dry-run named above, and do NOT submit the entry. Do NOT touch the
 keypair (~/workspace/makefun/makefun-keypair.json) or the API key
 (~/.makefun/credentials), and never print either. Do NOT claim anything or
 spend anything. Work only inside ~/workspace/makefun/gta6-01-game (plus
@@ -113,7 +132,7 @@ reading the requirements, the kit, and the push helper). Never delete,
 truncate, rewrite, retry, undo or compress any session message or session
 file. Never write or edit code outside a recording.
 
-When done, return: repo URL, new commit SHA, what the improvement is and how
-it was verified (commands + results), grade-local output if any, screenshot
+When done, return: repo URL, new commit SHA, recording id, what changed and
+how it was verified (commands + results), check output if any, screenshot
 verification (sizes, what each shows), and anything that would block
 bundle/check/submit.

@@ -2,7 +2,7 @@
 // traffic AI that loops the road grid. Police cars are built here too, but their
 // steering lives in police.js.
 import * as THREE from 'three';
-import { CAR, CITY } from './config.js';
+import { CAR, CITY, NOS } from './config.js';
 import { resolveCircle } from './city.js';
 import { pick, range } from './random.js';
 
@@ -171,18 +171,43 @@ export function createVehicles(G) {
   }
 
   // Player driving physics: arcade accel, steering that bites with speed, drag.
+  // Hold Shift while driving for the NOS boost: much harder accel and a higher
+  // top speed while the tank lasts, with a flame at the exhaust.
   vehicles.updatePlayerCar = (dt) => {
     const car = G.player.car;
     if (!car) return;
     const move = G.input.move();
     const handbrake = G.input.isDown('Space') || !!move.brake;
-    if (move.forward > 0) car.speed += CAR.accel * dt;
+    const boosting = !!move.sprint && G.player.nos > 0;
+    if (boosting) {
+      G.player.nos = Math.max(0, G.player.nos - NOS.drainPerSec * dt);
+    } else {
+      G.player.nos = Math.min(NOS.max, G.player.nos + NOS.refillPerSec * dt);
+    }
+    const topSpeed = boosting ? NOS.maxSpeed : CAR.maxSpeed;
+    if (move.forward > 0) car.speed += CAR.accel * (boosting ? NOS.accelMult : 1) * dt;
     else if (move.forward < 0) {
       car.speed += car.speed > 0.5 ? -CAR.brake * dt : -CAR.reverseAccel * dt;
     }
     if (handbrake) car.speed -= Math.sign(car.speed) * CAR.brake * 0.8 * dt;
     car.speed -= car.speed * CAR.drag * 0.35 * dt;
-    car.speed = Math.max(-CAR.maxReverse, Math.min(CAR.maxSpeed, car.speed));
+    car.speed = Math.max(-CAR.maxReverse, Math.min(topSpeed, car.speed));
+    if (!car.nosFlame) {
+      const flame = new THREE.Mesh(
+        new THREE.ConeGeometry(0.3, 1.1, 8),
+        new THREE.MeshBasicMaterial({ color: 0x66aaff, transparent: true, opacity: 0.9 }),
+      );
+      flame.rotation.x = -Math.PI / 2;
+      flame.position.set(0, 0.55, -2.6);
+      flame.visible = false;
+      car.group.add(flame);
+      car.nosFlame = flame;
+    }
+    car.nosFlame.visible = boosting && Math.abs(car.speed) > 4;
+    if (car.nosFlame.visible) {
+      const flicker = 0.8 + Math.random() * 0.4;
+      car.nosFlame.scale.set(flicker, flicker, 0.8 + Math.random() * 0.6);
+    }
     if (Math.abs(car.speed) < 0.05 && move.forward === 0) car.speed = 0;
     const steerTarget = CAR.steerMax * move.steer;
     car.steer += (steerTarget - car.steer) * Math.min(1, CAR.steerSpeed * dt * 2);

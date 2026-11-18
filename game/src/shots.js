@@ -101,8 +101,8 @@ function driveScene(G, seconds, wanted) {
  * Set the world to the named scene and return the screen to show over it.
  * start: the title screen over the city at golden hour.
  * drive: Jax driving his coupe through traffic.
- * chase: three wanted stars, pursuit cars closing in.
- * mission: the dock shootout, objective live with its marker.
+ * chase: four wanted stars, pursuit cars, a roadblock and the helicopter.
+ * mission: the marina shootout (job 7), objective live with its marker.
  */
 export function stageShot(name, G) {
   G.player.reset(0, 20, Math.PI);
@@ -113,15 +113,19 @@ export function stageShot(name, G) {
   }
   if (name === 'chase') {
     runSteps(G, 1);
-    return driveScene(G, 6, 3);
+    // Four stars: pursuit cars, a roadblock ahead and the helicopter overhead.
+    return driveScene(G, 6, 4);
   }
   if (name === 'mission') {
     G.hasPistol = true;
     G.ammo = 12;
-    G.missions.reset(2);
+    G.missions.reset(6);
+    // Job 7, Harbor Heat: the marina shootout, SMG in hand.
+    G.combat.weapon = 'smg';
+    G.combat.syncAmmo();
     G.missions.start();
-    G.player.reset(-78, 100, Math.PI);
-    // Face the docks: camera looks from the player toward the marker.
+    G.player.reset(52, 96, Math.PI);
+    // Face the marina: camera looks from the player toward the marker.
     const tx = G.missions.marker.position.x;
     const tz = G.missions.marker.position.z;
     G.cameraYaw = Math.atan2(-(tx - G.player.pos.x), -(tz - G.player.pos.z));

@@ -9,7 +9,8 @@
 //
 // The game itself is a complete open-world crime game: a procedural coastal city
 // to explore on foot and by car, traffic and pedestrians, cars to steal, a wanted
-// system with police pursuit, a five-mission story, pistol combat, a day/night
+// system with police pursuit, roadblocks and a helicopter, an eight-mission story,
+// pistol/SMG/shotgun combat, an NOS boost and a three-station car radio, a day/night
 // cycle with a HUD clock, a HUD with a live minimap, a start screen, a
 // localStorage save and synthesised sound.
 //

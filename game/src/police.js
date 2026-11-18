@@ -1,9 +1,12 @@
-// The wanted system: 0-5 stars. Crimes raise it, the Solmar PD answers with
-// pursuit cars (and, from 2 stars, officers on foot), and hiding out of sight
-// cools it back down. Get caught on foot and it is over; lose them in a car and
-// the heat fades.
+// The wanted system: 0-5 stars. Crimes raise it, and the Solmar PD answers
+// in escalating tiers: pursuit cars from 1 star, officers on foot from 2,
+// roadblocks across the road ahead from 3, and a police helicopter with a
+// searchlight from 4. At 5 stars the pursuit is at its biggest and the
+// roadblocks double. Get caught on foot and it is over; lose them in a car
+// and the heat fades — but while the helicopter is up, the police can spot
+// Jax from much further away, so hiding takes longer.
 import * as THREE from 'three';
-import { CAR, CITY, WANTED } from './config.js';
+import { CAR, CITY, HELI, ROADBLOCK, WANTED } from './config.js';
 import { buildCharacter } from './player.js';
 import { nearestRoadPoint, resolveCircle } from './city.js';
 import { range } from './random.js';
@@ -13,9 +16,12 @@ export function createPolice(G) {
   const police = {
     cars: [],
     officers: [],
+    roadblocks: [],
+    heli: null,
     lastCrimeAt: -100,
     decayTimer: 0,
     arrestTimer: 0,
+    blockTimer: 0,
   };
 
   police.addWanted = (stars, reason) => {
@@ -61,6 +67,115 @@ export function createPolice(G) {
     return officer;
   }
 
+  // A roadblock: two police cars parked across the road ahead of Jax, lights
+  // flashing, so the chase has something to crash through or swerve around.
+  // The cars are real cars (they collide), but they never pursue.
+  function placeRoadblock(block) {
+    const target = G.player.car ? G.player.car.pos : G.player.pos;
+    const heading = G.player.car ? G.player.car.heading : G.player.heading;
+    const aheadX = target.x + Math.sin(heading) * ROADBLOCK.aheadDist;
+    const aheadZ = target.z + Math.cos(heading) * ROADBLOCK.aheadDist;
+    const point = nearestRoadPoint(
+      Math.max(-130, Math.min(130, aheadX)),
+      Math.max(-130, Math.min(130, aheadZ)),
+    );
+    // Cars face along the road and sit side by side across it.
+    const alongX = point.axis === 'x' ? 1 : 0;
+    const alongZ = point.axis === 'x' ? 0 : 1;
+    const faceHeading = point.axis === 'x' ? Math.PI / 2 : 0;
+    const spots = [
+      { x: point.x - alongZ * 3.1, z: point.z - alongX * 3.1 },
+      { x: point.x + alongZ * 3.1, z: point.z + alongX * 3.1 },
+    ];
+    block.cars.forEach((car, i) => {
+      car.pos.set(spots[i].x, 0, spots[i].z);
+      car.heading = faceHeading + (i === 0 ? 0 : Math.PI);
+      car.speed = 0;
+      car.group.position.copy(car.pos);
+      car.group.rotation.y = car.heading;
+    });
+    block.pos.set(point.x, 0, point.z);
+  }
+
+  function spawnRoadblock() {
+    const cars = [];
+    for (let i = 0; i < 2; i += 1) {
+      const car = G.vehicles.makeCar({
+        x: 0, z: 0, heading: 0, kind: 'police', isPolice: true, name: 'Roadblock',
+      });
+      car.driver = 'police';
+      cars.push(car);
+    }
+    const block = { cars, pos: new THREE.Vector3(0, 0, 0) };
+    placeRoadblock(block);
+    police.roadblocks.push(block);
+    G.hud.toast('Roadblock ahead — the PD sealed the road!');
+    return block;
+  }
+
+  function removeRoadblock(block) {
+    for (const car of block.cars) {
+      G.scene.remove(car.group);
+      const i = G.vehicles.cars.indexOf(car);
+      if (i >= 0) G.vehicles.cars.splice(i, 1);
+    }
+    police.roadblocks.splice(police.roadblocks.indexOf(block), 1);
+  }
+
+  // The police helicopter: a box-built heli that circles above Jax with a
+  // searchlight cone on the ground. It never lands and never shoots; its
+  // job is to keep eyes on him so the heat cools much slower.
+  function spawnHeli() {
+    const group = new THREE.Group();
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x2e4a72 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.4, 4.2), darkMat);
+    body.position.y = 0;
+    group.add(body);
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 1.2),
+      new THREE.MeshLambertMaterial({ color: 0x9fd8e8, emissive: 0x224455 }));
+    glass.position.set(0, 0.2, 1.6);
+    group.add(glass);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 3.4), darkMat);
+    tail.position.set(0, 0.3, -3.4);
+    group.add(tail);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.4, 0.9), darkMat);
+    fin.position.set(0, 0.9, -4.8);
+    group.add(fin);
+    const rotor = new THREE.Mesh(new THREE.BoxGeometry(9, 0.08, 0.5),
+      new THREE.MeshLambertMaterial({ color: 0x222222 }));
+    rotor.position.y = 1.0;
+    group.add(rotor);
+    const tailRotor = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.6, 0.3),
+      new THREE.MeshLambertMaterial({ color: 0x222222 }));
+    tailRotor.position.set(0.35, 0.9, -4.8);
+    group.add(tailRotor);
+    // Searchlight: a pale cone from the belly to the ground.
+    const beam = new THREE.Mesh(
+      new THREE.ConeGeometry(4.5, HELI.height, 16, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xfff2b0, transparent: true, opacity: 0.13,
+        side: THREE.DoubleSide, depthWrite: false,
+      }),
+    );
+    beam.position.y = -HELI.height / 2;
+    group.add(beam);
+    const spot = new THREE.Mesh(new THREE.CircleGeometry(4.5, 20),
+      new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.16, depthWrite: false }));
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.y = -HELI.height + 0.3;
+    group.add(spot);
+    G.scene.add(group);
+    police.heli = { group, rotor, tailRotor, beam, spot, angle: 1.2, bobPhase: 0 };
+    G.hud.toast('Police helicopter overhead — stay out of the spotlight!');
+    return police.heli;
+  }
+
+  function removeHeli() {
+    if (!police.heli) return;
+    G.scene.remove(police.heli.group);
+    police.heli = null;
+  }
+
   police.clear = () => {
     for (const car of police.cars) {
       G.scene.remove(car.group);
@@ -68,6 +183,8 @@ export function createPolice(G) {
       if (i >= 0) G.vehicles.cars.splice(i, 1);
     }
     for (const officer of police.officers) G.scene.remove(officer.group);
+    for (const block of [...police.roadblocks]) removeRoadblock(block);
+    removeHeli();
     police.cars = [];
     police.officers = [];
     G.wanted = 0;
@@ -88,6 +205,53 @@ export function createPolice(G) {
     while (police.officers.length > wantOfficers) {
       const officer = police.officers.pop();
       G.scene.remove(officer.group);
+    }
+    // Roadblocks from 3 stars, two of them at 5.
+    const wantBlocks = G.wanted >= ROADBLOCK.minWanted ? (G.wanted >= 5 ? 2 : 1) : 0;
+    while (police.roadblocks.length < wantBlocks) spawnRoadblock();
+    while (police.roadblocks.length > wantBlocks) removeRoadblock(police.roadblocks[police.roadblocks.length - 1]);
+    // A block Jax drove past (or far from) moves ahead again.
+    police.blockTimer += dt;
+    if (police.blockTimer > ROADBLOCK.repositionEverySec) {
+      police.blockTimer = 0;
+      const target = G.player.car ? G.player.car.pos : G.player.pos;
+      for (const block of police.roadblocks) {
+        const d = Math.hypot(block.pos.x - target.x, block.pos.z - target.z);
+        if (d < 22 || d > 110) placeRoadblock(block);
+      }
+    }
+    // Helicopter from 4 stars.
+    if (G.wanted >= HELI.minWanted) {
+      if (!police.heli) spawnHeli();
+    } else {
+      removeHeli();
+    }
+    if (police.heli) {
+      const heli = police.heli;
+      const target = G.player.car ? G.player.car.pos : G.player.pos;
+      // Track from ahead of Jax, low over the road, with a slow side-to-side
+      // sweep — high overhead it would never be seen in the chase.
+      const heading = G.player.car ? G.player.car.heading : G.player.heading;
+      heli.angle += dt * 0.5;
+      heli.bobPhase += dt * 1.4;
+      const ahead = HELI.aheadDist;
+      const sweep = Math.sin(heli.angle) * 9;
+      const fx = Math.sin(heading);
+      const fz = Math.cos(heading);
+      heli.group.position.set(
+        target.x + fx * ahead - fz * sweep,
+        HELI.height + Math.sin(heli.bobPhase) * 1.2,
+        target.z + fz * ahead + fx * sweep,
+      );
+      heli.group.rotation.y = Math.atan2(
+        target.x - heli.group.position.x, target.z - heli.group.position.z,
+      );
+      heli.rotor.rotation.y += dt * 28;
+      heli.tailRotor.rotation.z += dt * 34;
+      // The spotlight stays on the ground under the heli, not on Jax.
+      heli.spot.position.set(0, -heli.group.position.y + 0.3, 0);
+      heli.beam.material.opacity = G.city.clock.label === 'Night' ? 0.2 : 0.1;
+      heli.spot.material.opacity = G.city.clock.label === 'Night' ? 0.24 : 0.12;
     }
 
     // Pursuit cars: steer toward the player and ram.
@@ -118,6 +282,15 @@ export function createPolice(G) {
       }
       // Flash the light bar, red then blue.
       if (car.lightBar) {
+        const phase = Math.floor(G.time * 4) % 2 === 0;
+        car.lightBar.children[0].material.emissive.setHex(phase ? 0xff0000 : 0x220000);
+        car.lightBar.children[1].material.emissive.setHex(phase ? 0x000022 : 0x0000ff);
+      }
+    }
+    // Roadblock cars sit still, but their light bars flash too.
+    for (const block of police.roadblocks) {
+      for (const car of block.cars) {
+        if (!car.lightBar) continue;
         const phase = Math.floor(G.time * 4) % 2 === 0;
         car.lightBar.children[0].material.emissive.setHex(phase ? 0xff0000 : 0x220000);
         car.lightBar.children[1].material.emissive.setHex(phase ? 0x000022 : 0x0000ff);
@@ -167,6 +340,7 @@ export function createPolice(G) {
     }
 
     // Heat: no crime for a while and no police close by, and it cools down.
+    // The helicopter watches from the sky, so hiding takes a longer distance.
     let nearestPolice = Infinity;
     for (const car of police.cars) {
       nearestPolice = Math.min(nearestPolice, Math.hypot(car.pos.x - target.x, car.pos.z - target.z));
@@ -174,7 +348,8 @@ export function createPolice(G) {
     for (const officer of police.officers) {
       nearestPolice = Math.min(nearestPolice, Math.hypot(officer.pos.x - target.x, officer.pos.z - target.z));
     }
-    if (G.wanted > 0 && G.time - police.lastCrimeAt > WANTED.decayDelay && nearestPolice > WANTED.hideDistance) {
+    const hideDistance = police.heli ? HELI.hideDistance : WANTED.hideDistance;
+    if (G.wanted > 0 && G.time - police.lastCrimeAt > WANTED.decayDelay && nearestPolice > hideDistance) {
       police.decayTimer += dt;
       if (police.decayTimer > WANTED.decayEvery) {
         police.decayTimer = 0;

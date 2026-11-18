@@ -102,10 +102,18 @@ function applySave(save) {
     G.player.reset(save.pos?.[0] ?? 10, save.pos?.[1] ?? 30, save.heading ?? 0);
     G.player.health = save.health ?? 100;
     G.missions.reset(save.missionIndex ?? 0);
+    if (save.weapons) {
+      G.combat.restoreWeapons(save.weapons);
+    } else {
+      // A save from before weapons existed: keep its pistol ammo.
+      G.combat.weapons.pistol.ammo = G.ammo;
+      G.combat.syncAmmo();
+    }
   } else {
     G.cash = 100;
     G.hasPistol = false;
     G.ammo = 0;
+    G.combat.resetWeapons();
     G.player.reset(10, 30, 0);
     G.missions.reset(0);
   }
@@ -209,6 +217,14 @@ function handleKeys() {
   }
   if (input.wasPressed('KeyF') && G.player.onFoot) G.combat.punch();
   if (input.wasPressed('KeyR')) G.combat.reload();
+  if (input.wasPressed('KeyQ')) {
+    G.audio.ensure();
+    const station = G.audio.nextStation();
+    G.hud.toast(`Radio: ${station.name} — ${station.tag}`);
+  }
+  if (input.wasPressed('Digit1')) G.combat.selectWeapon('pistol');
+  if (input.wasPressed('Digit2')) G.combat.selectWeapon('smg');
+  if (input.wasPressed('Digit3')) G.combat.selectWeapon('shotgun');
 }
 
 // One fixed step of the whole world.

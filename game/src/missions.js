@@ -1,7 +1,8 @@
-// The story: five jobs for Mama Rosa, from a first errand to a final stand on the
-// pier. Each mission is one objective with a glowing marker in the world, a line
-// of dialogue, and a cash reward. Progress is saved, so the chain survives a
-// reload.
+// The story: eight jobs for Mama Rosa, from a first errand to a final race
+// to the pier. Each mission is one objective with a glowing marker in the
+// world, a line of dialogue, and a cash reward. Progress is saved, so the chain
+// survives a reload. Job 8 is a timed run: reach the pier before Voss's
+// backup arrives, or the job fails and must be tried again.
 //
 // NOTE: every target/start/deliver point sits on open ground OUTSIDE the
 // buildings' colliders (the café and the garage are solid boxes). A point inside
@@ -88,6 +89,55 @@ const MISSION_DEFS = [
     objective: 'Defeat the Lobos on the pier (0/6)',
     doneLine: 'Mama Rosa: "It is done. Solmar is yours again, Jax."',
   },
+  {
+    id: 6,
+    name: 'The Stash',
+    giver: 'Mama Rosa',
+    start: { x: 10, z: 70 },
+    pickup: { x: -104, z: 116 },
+    drop: { x: 10, z: 70 },
+    type: 'deliver',
+    reward: 1200,
+    brief: [
+      'Mama Rosa: "The Lobos hid my money in a container at the docks."',
+      'Mama Rosa: "Take it back. The police will be watching — lose them first."',
+    ],
+    objective: 'Recover the stash at the docks',
+    doneLine: 'Mama Rosa: "Every dollar back. You are earning your place, Jax."',
+  },
+  {
+    id: 7,
+    name: 'Harbor Heat',
+    giver: 'Mama Rosa',
+    start: { x: 10, z: 70 },
+    target: { x: 52, z: 130 },
+    type: 'kill',
+    count: 4,
+    reward: 1800,
+    brief: [
+      'Mama Rosa: "The Lobos moved into the marina. They think the boats hide them."',
+      'Mama Rosa: "Clear them out, Jax. All four."',
+    ],
+    objective: 'Clear the Lobos from the marina (0/4)',
+    doneLine: 'Mama Rosa: "The marina is ours again. The fishermen will sleep tonight."',
+  },
+  {
+    id: 8,
+    name: "The Voss File",
+    giver: 'Mama Rosa',
+    start: { x: 10, z: 70 },
+    target: { x: 0, z: 172 },
+    type: 'timed',
+    timeLimit: 75,
+    wanted: 3,
+    reward: 2500,
+    brief: [
+      'Mama Rosa: "Voss keeps a file on me at the end of the pier."',
+      'Mama Rosa: "Her backup is coming. Get there in 75 seconds — drive like the city is yours."',
+    ],
+    objective: 'Reach the pier before Voss’s backup arrives',
+    doneLine: 'Mama Rosa: "The file is ash, Jax. Voss has nothing on us now."',
+  },
 ];
 
 export function createMissions(G) {
@@ -98,6 +148,7 @@ export function createMissions(G) {
     killsLeft: 0,
     killsTotal: 0,
     hasPackage: false,
+    timeLeft: 0,
     hotToastAt: -100,
     target: null,
   };
@@ -149,6 +200,10 @@ export function createMissions(G) {
     if (def.type === 'deliver' && missions.hasPackage) {
       return { title: `Job ${def.id}: ${def.name}`, text: 'Lose the police, then bring the package to Mama Rosa' };
     }
+    if (def.type === 'timed') {
+      const left = Math.max(0, Math.ceil(missions.timeLeft));
+      return { title: `Job ${def.id}: ${def.name}`, text: `Reach the pier before backup arrives — ${left}s left` };
+    }
     return { title: `Job ${def.id}: ${def.name}`, text: def.objective };
   };
 
@@ -166,6 +221,11 @@ export function createMissions(G) {
       G.combat.spawnEnemies(def.target, def.count, !!def.boss);
     }
     if (def.type === 'deliver') setTarget(def.pickup);
+    if (def.type === 'timed') {
+      setTarget(def.target);
+      missions.timeLeft = def.timeLimit;
+      G.police.addWanted(def.wanted ?? 3, 'Voss called it in — the whole PD is looking for you');
+    }
   };
 
   missions.complete = () => {
@@ -182,9 +242,12 @@ export function createMissions(G) {
     missions.killsLeft = 0;
     if (def.id === 1) {
       G.hasPistol = true;
-      G.ammo = 12;
+      G.combat.weapons.pistol.ammo = 12;
+      G.combat.syncAmmo();
       G.hud.toast('Pistol received — click to shoot, R to reload');
     }
+    // Story progress unlocks weapons: the SMG after job 3, the shotgun after job 6.
+    G.combat.unlockForProgress(missions.index);
     G.saveGame();
     if (missions.index >= MISSION_DEFS.length) {
       marker.visible = false;
@@ -217,6 +280,9 @@ export function createMissions(G) {
     missions.stage = 'idle';
     missions.hasPackage = false;
     missions.killsLeft = 0;
+    missions.timeLeft = 0;
+    // A loaded save keeps the weapons its progress earned.
+    G.combat.unlockForProgress(index);
     const def = currentDef();
     if (def) setTarget(def.start);
     else marker.visible = false;
@@ -235,6 +301,19 @@ export function createMissions(G) {
       return;
     }
     if (def.type === 'goto' && dist < 6) missions.complete();
+    if (def.type === 'timed') {
+      missions.timeLeft -= dt;
+      if (missions.timeLeft <= 0) {
+        // Too slow: the job fails and must be started again at the café.
+        missions.stage = 'idle';
+        missions.timeLeft = 0;
+        setTarget(def.start);
+        G.hud.toast('Too slow — Voss’s backup arrived. Try the run again.');
+        G.audio.busted();
+        return;
+      }
+      if (dist < 6) missions.complete();
+    }
     if (def.type === 'steal' && missions.stage === 'deliver' && dist < 8) missions.complete();
     if (def.type === 'deliver') {
       if (!missions.hasPackage && dist < 6) {

@@ -1,5 +1,5 @@
-// Save and load through localStorage: cash, story progress, the pistol, and
-// where Jax was standing. Nothing else leaves the browser.
+// Save and load through localStorage: cash, story progress, the weapons,
+// and where Jax was standing. Nothing else leaves the browser.
 import { SAVE_KEY } from './config.js';
 
 export function loadSave() {
@@ -17,11 +17,12 @@ export function loadSave() {
 export function writeSave(G) {
   try {
     const save = {
-      version: 1,
+      version: 2,
       cash: G.cash,
       missionIndex: G.missions.index,
       hasPistol: G.hasPistol,
       ammo: G.ammo,
+      weapons: G.combat.saveWeapons(),
       health: Math.round(G.player.health),
       pos: [Math.round(G.player.pos.x * 10) / 10, Math.round(G.player.pos.z * 10) / 10],
       heading: G.player.heading,

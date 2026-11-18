@@ -56,6 +56,46 @@ export const PISTOL = {
   range: 90,
 };
 
+// The weapon rack: the pistol is earned after job 1, the SMG after job 3,
+// the shotgun after job 6. Keys 1/2/3 switch between the unlocked ones.
+// damage is per hit (the shotgun fires 5 pellets), spread is the pellet
+// cone in radians, magSize the reload size.
+export const WEAPONS = {
+  pistol: { name: 'Pistol', magazine: 12, damage: 1, fireInterval: 0.22, range: 90, pellets: 1, spread: 0 },
+  smg: { name: 'SMG', magazine: 30, damage: 1, fireInterval: 0.09, range: 70, pellets: 1, spread: 0.02 },
+  shotgun: { name: 'Shotgun', magazine: 6, damage: 1, fireInterval: 0.85, range: 26, pellets: 5, spread: 0.09 },
+};
+
+// NOS boost for cars: hold Shift while driving. It drains fast, refills
+// slowly, and only works while there is some in the tank.
+export const NOS = {
+  max: 100,
+  drainPerSec: 38,
+  refillPerSec: 9,
+  accelMult: 1.9,
+  maxSpeed: 52,
+};
+
+// Police escalation: roadblocks from 3 stars, the helicopter from 4. While
+// the helicopter is up, the police can see Jax from much further away, so
+// hiding to cool the heat down takes longer.
+export const HELI = {
+  minWanted: 4,
+  // The helicopter tracks Jax from ahead, low over the road, so it is
+  // visible in the chase and its searchlight stays on the street. The chase
+  // camera looks slightly down, so the heli must fly low (10 m) to stay in
+  // frame; the road ahead of Jax is clear of buildings.
+  height: 10,
+  aheadDist: 34,
+  hideDistance: 90,
+};
+
+export const ROADBLOCK = {
+  minWanted: 3,
+  aheadDist: 55,
+  repositionEverySec: 8,
+};
+
 export const WANTED = {
   max: 5,
   decayDelay: 20,

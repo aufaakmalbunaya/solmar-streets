@@ -48,6 +48,7 @@ export function createPlayer(G) {
     onFoot: true,
     car: null,
     health: PLAYER.maxHealth,
+    nos: 100,
     lastDamageAt: -100,
     walkPhase: 0,
     punchTimer: 0,
@@ -60,6 +61,7 @@ export function createPlayer(G) {
     player.onFoot = true;
     player.car = null;
     player.health = PLAYER.maxHealth;
+    player.nos = 100;
     group.visible = true;
   };
 

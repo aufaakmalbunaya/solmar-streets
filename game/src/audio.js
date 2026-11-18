@@ -125,6 +125,15 @@ export function createAudio() {
     noiseBurst(0.14, 1800, 0.5);
     blip(160, 0.1, 0.25, 'square');
   };
+  // The SMG is a short, sharp crack; the shotgun a big low boom.
+  audio.smgShot = () => {
+    noiseBurst(0.07, 2400, 0.32);
+    blip(240, 0.05, 0.18, 'square');
+  };
+  audio.shotgunBlast = () => {
+    noiseBurst(0.3, 900, 0.65);
+    blip(90, 0.22, 0.3, 'sawtooth');
+  };
   audio.enemyShot = () => noiseBurst(0.12, 1200, 0.18);
   audio.punch = () => noiseBurst(0.08, 900, 0.3);
   audio.crash = () => noiseBurst(0.25, 500, 0.5);
@@ -135,29 +144,81 @@ export function createAudio() {
     [523, 659, 784].forEach((freq, i) => setTimeout(() => blip(freq, 0.18, 0.25), i * 110));
   };
 
-  // A slow four-chord loop (Am - F - C - G) as a quiet pad plus a soft bass pulse.
-  // One chord per bar, one bar every 2.4 s.
-  const CHORDS = [
-    [110, 220, 261.6, 329.6],
-    [87.3, 174.6, 220, 261.6],
-    [130.8, 196, 261.6, 329.6],
-    [98, 196, 246.9, 293.7],
+  // The car radio: three stations, all synthesised, no audio files. Each one
+  // is a chord loop with its own feel — SOLMAR FM is the slow sunset pad,
+  // LOBOS ROCK is a fast driving riff, MARINA NIGHTS is a mellow late-night
+  // groove. Q cycles stations while driving; the HUD shows what is playing.
+  const STATIONS = [
+    {
+      name: 'SOLMAR FM',
+      tag: 'Sunset drive',
+      wave: 'sawtooth',
+      barMs: 2400,
+      chords: [
+        [110, 220, 261.6, 329.6],
+        [87.3, 174.6, 220, 261.6],
+        [130.8, 196, 261.6, 329.6],
+        [98, 196, 246.9, 293.7],
+      ],
+    },
+    {
+      name: 'LOBOS ROCK',
+      tag: 'Turn it up',
+      wave: 'square',
+      barMs: 1500,
+      chords: [
+        [82.4, 164.8, 246.9, 329.6],
+        [73.4, 146.8, 220, 293.7],
+        [98, 196, 246.9, 311.1],
+        [110, 220, 277.2, 329.6],
+      ],
+    },
+    {
+      name: 'MARINA NIGHTS',
+      tag: 'Late-night groove',
+      wave: 'sine',
+      barMs: 3000,
+      chords: [
+        [130.8, 196, 233.1, 311.1],
+        [116.5, 174.6, 220, 277.2],
+        [146.8, 220, 261.6, 349.2],
+        [123.5, 185, 246.9, 293.7],
+      ],
+    },
   ];
+  audio.stations = STATIONS;
+  audio.station = 0;
+  audio.stationName = () => STATIONS[audio.station].name;
+  audio.stationTag = () => STATIONS[audio.station].tag;
+
+  audio.nextStation = () => {
+    audio.station = (audio.station + 1) % STATIONS.length;
+    if (audio.musicTimer) {
+      clearInterval(audio.musicTimer);
+      audio.musicTimer = null;
+      audio.startMusic();
+    }
+    return STATIONS[audio.station];
+  };
+
+  // One chord per bar from the current station, as a quiet pad plus a bass pulse.
   audio.startMusic = () => {
     if (!audio.ctx || audio.musicTimer) return;
+    const station = STATIONS[audio.station];
     audio.musicTimer = setInterval(() => {
       if (!audio.ctx || audio.muted) return;
-      const chord = CHORDS[audio.musicStep % CHORDS.length];
+      const chord = station.chords[audio.musicStep % station.chords.length];
       audio.musicStep += 1;
       const t = audio.ctx.currentTime;
+      const bar = station.barMs / 1000;
       chord.forEach((freq, i) => {
         const osc = audio.ctx.createOscillator();
-        osc.type = i === 0 ? 'triangle' : 'sawtooth';
+        osc.type = i === 0 ? 'triangle' : station.wave;
         osc.frequency.value = freq;
         const gain = audio.ctx.createGain();
         gain.gain.setValueAtTime(0.0001, t);
         gain.gain.linearRampToValueAtTime(i === 0 ? 0.06 : 0.016, t + 0.4);
-        gain.gain.linearRampToValueAtTime(0.0001, t + 2.3);
+        gain.gain.linearRampToValueAtTime(0.0001, t + bar - 0.1);
         const filter = audio.ctx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.value = 900;
@@ -165,9 +226,9 @@ export function createAudio() {
         filter.connect(gain);
         gain.connect(audio.master);
         osc.start(t);
-        osc.stop(t + 2.4);
+        osc.stop(t + bar);
       });
-    }, 2400);
+    }, station.barMs);
   };
 
   return audio;
