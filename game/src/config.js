@@ -106,6 +106,44 @@ export const WANTED = {
 
 export const SAVE_KEY = 'solmar-streets.save.v1';
 
+// The beachfront shops and safehouse (round 4). Each shop is a real building
+// on the sand with a sign; walk up to it and the HUD shows what it sells and
+// which key buys it. Prices are in dollars; the safehouse is free.
+export const SHOP_RADIUS = 9;
+export const SHOP_PRICES = {
+  pistolAmmo: 40, // one full pistol magazine (12 rounds)
+  smgAmmo: 80, // one full SMG magazine (30 rounds)
+  shotgunAmmo: 60, // one full shotgun tube (6 shells)
+  heal: 50, // heal to full health
+  nosRefill: 30, // refill the NOS tank instantly
+};
+
+// x/z are the building centres on the sand (z 165: clear of the palms at
+// z 152-156 and the boats at x 40-72). `front` is where Jax stands to shop.
+export const SHOPS = {
+  gun: {
+    key: 'gun',
+    name: "Big Iron Guns",
+    sign: 'BIG IRON GUNS',
+    x: -52, z: 165, front: { x: -52, z: 156 },
+    color: 0x8a2f2a, awning: 0x2a2a2a,
+  },
+  clinic: {
+    key: 'clinic',
+    name: "Doc Sal's",
+    sign: "DOC SAL'S",
+    x: 104, z: 165, front: { x: 104, z: 156 },
+    color: 0xe8e4d8, awning: 0x2e7f8a,
+  },
+  safehouse: {
+    key: 'safehouse',
+    name: "Rosa's Safehouse",
+    sign: 'SAFEHOUSE',
+    x: -104, z: 165, front: { x: -104, z: 156 },
+    color: 0x3a7d5c, awning: 0xe8703a,
+  },
+};
+
 export const PALETTE = {
   sky: 0x8fc7e8,
   fog: 0xa8c8dd,

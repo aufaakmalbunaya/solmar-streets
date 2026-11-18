@@ -1,5 +1,8 @@
 // Save and load through localStorage: cash, story progress, the weapons,
-// and where Jax was standing. Nothing else leaves the browser.
+// the wanted level, the camera mode and the NOS tank, and where Jax was
+// standing. Version 3 adds wanted, cameraMode and nos; older saves (v1/v2)
+// still load, with the new fields falling back to safe defaults. Nothing
+// else leaves the browser.
 import { SAVE_KEY } from './config.js';
 
 export function loadSave() {
@@ -17,13 +20,16 @@ export function loadSave() {
 export function writeSave(G) {
   try {
     const save = {
-      version: 2,
+      version: 3,
       cash: G.cash,
       missionIndex: G.missions.index,
       hasPistol: G.hasPistol,
       ammo: G.ammo,
       weapons: G.combat.saveWeapons(),
       health: Math.round(G.player.health),
+      wanted: G.wanted,
+      cameraMode: G.cameraMode,
+      nos: Math.round(G.player.nos),
       pos: [Math.round(G.player.pos.x * 10) / 10, Math.round(G.player.pos.z * 10) / 10],
       heading: G.player.heading,
       savedAt: new Date().toISOString(),

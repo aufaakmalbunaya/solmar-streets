@@ -101,8 +101,10 @@ function driveScene(G, seconds, wanted) {
  * Set the world to the named scene and return the screen to show over it.
  * start: the title screen over the city at golden hour.
  * drive: Jax driving his coupe through traffic.
- * chase: four wanted stars, pursuit cars, a roadblock and the helicopter.
- * mission: the marina shootout (job 7), objective live with its marker.
+ * chase: four wanted stars, pursuit cars, a roadblock and the helicopter,
+ *   seen through the chase camera.
+ * shop: Jax on foot at Big Iron Guns, the shop hint showing.
+ * mission: the pier shootout (job 12), objective live with its marker.
  */
 export function stageShot(name, G) {
   G.player.reset(0, 20, Math.PI);
@@ -113,19 +115,35 @@ export function stageShot(name, G) {
   }
   if (name === 'chase') {
     runSteps(G, 1);
-    // Four stars: pursuit cars, a roadblock ahead and the helicopter overhead.
+    // Four stars: pursuit cars, a roadblock ahead and the helicopter overhead,
+    // all seen through the chase camera.
+    G.cameraMode = 'chase';
+    G.chasePos = null;
     return driveScene(G, 6, 4);
+  }
+  if (name === 'shop') {
+    // Jax on foot at Big Iron Guns on the west beach, the shop hint showing.
+    G.hasPistol = true;
+    G.ammo = 12;
+    G.cash = 1200;
+    G.missions.reset(8);
+    G.player.reset(-52, 150, Math.PI);
+    G.cameraYaw = Math.PI;
+    G.cameraPitch = 0.3;
+    G.cameraDist = 9;
+    runSteps(G, 2);
+    return 'playing';
   }
   if (name === 'mission') {
     G.hasPistol = true;
     G.ammo = 12;
-    G.missions.reset(6);
-    // Job 7, Harbor Heat: the marina shootout, SMG in hand.
+    G.missions.reset(11);
+    // Job 12, The Voss Takedown: the pier shootout, SMG in hand.
     G.combat.weapon = 'smg';
     G.combat.syncAmmo();
     G.missions.start();
-    G.player.reset(52, 96, Math.PI);
-    // Face the marina: camera looks from the player toward the marker.
+    G.player.reset(0, 140, Math.PI);
+    // Face the pier: camera looks from the player toward the marker.
     const tx = G.missions.marker.position.x;
     const tz = G.missions.marker.position.z;
     G.cameraYaw = Math.atan2(-(tx - G.player.pos.x), -(tz - G.player.pos.z));

@@ -24,6 +24,8 @@ export function createHud(G) {
     toastEl: $('toast'),
     dialogueEl: $('dialogue'),
     hint: $('hint'),
+    shopHint: $('shop-hint'),
+    camMode: $('cam-mode'),
     damage: $('damage'),
     minimap: $('minimap'),
     minimapCtx: $('minimap').getContext('2d'),
@@ -92,6 +94,25 @@ export function createHud(G) {
       ctx.lineTo(mx - r, my);
       ctx.closePath();
       ctx.fill();
+    }
+    // Shops and the safehouse: green square (guns), white cross (clinic),
+    // blue square (safehouse).
+    for (const shop of G.shops.list) {
+      const sx = toX(shop.front.x);
+      const sy = toY(shop.front.z);
+      if (shop.key === 'gun') {
+        ctx.fillStyle = '#7ddb8a';
+        ctx.fillRect(sx - 3, sy - 3, 6, 6);
+      } else if (shop.key === 'clinic') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(sx - 1, sy - 4, 2, 8);
+        ctx.fillRect(sx - 4, sy - 1, 8, 2);
+      } else {
+        ctx.fillStyle = '#4fa8ff';
+        ctx.fillRect(sx - 3, sy - 3, 6, 6);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(sx - 1, sy - 1, 2, 2);
+      }
     }
     // Traffic, white dots.
     ctx.fillStyle = '#ffffff';
@@ -198,8 +219,14 @@ export function createHud(G) {
     hud.nosLabel.style.display = driving ? '' : 'none';
     if (driving) hud.nosFill.style.width = `${Math.round(G.player.nos)}%`;
     hud.crosshair.classList.toggle('show', G.hasPistol && G.screen === 'playing');
+    // Camera mode while driving, and the shop hint while standing at a shop.
+    hud.camMode.style.display = driving ? '' : 'none';
+    if (driving) hud.camMode.textContent = `CAM ${G.cameraMode === 'chase' ? 'Chase' : 'Orbit'} (C)`;
+    const nearShop = G.player.onFoot ? G.shops.nearest(G.player.pos) : null;
+    hud.shopHint.textContent = nearShop ? G.shops.hintFor(nearShop) : '';
+    hud.shopHint.style.display = nearShop ? '' : 'none';
     hud.hint.textContent = G.player.car
-      ? 'W/S drive · A/D steer · Shift NOS · Space handbrake · E leave car · Q radio · P pause · M mute'
+      ? 'W/S drive · A/D steer · Shift NOS · Space handbrake · E leave car · Q radio · C chase cam · P pause · M mute'
       : 'WASD move · Shift sprint · E enter car · F punch · Click shoot · 1/2/3 weapons · R reload · P pause · M mute';
     if (G.screen === 'playing') drawMinimap();
   };

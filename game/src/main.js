@@ -18,6 +18,7 @@ import { createPedestrians } from './pedestrians.js';
 import { createPolice } from './police.js';
 import { createMissions } from './missions.js';
 import { createCombat } from './combat.js';
+import { createShops } from './shops.js';
 import { createHud } from './hud.js';
 import { clearSave, loadSave, writeSave } from './save.js';
 import { stageShot } from './shots.js';
@@ -46,6 +47,8 @@ const G = {
   cameraYaw: Math.PI, // start looking south, down the road toward the café
   cameraPitch: 0.32,
   cameraDist: 10,
+  cameraMode: 'orbit', // orbit | chase (C toggles while playing)
+  chasePos: null, // smoothed chase-camera position, reset on toggle/load
   lastShotAt: -100,
   lastMouseAt: -100,
   hasSave: false,
@@ -75,6 +78,7 @@ G.peds = createPedestrians(G);
 G.police = createPolice(G);
 G.missions = createMissions(G);
 G.combat = createCombat(G);
+G.shops = createShops(G);
 G.hud = createHud(G);
 G.saveGame = () => writeSave(G);
 
@@ -101,6 +105,8 @@ function applySave(save) {
     G.ammo = save.ammo ?? 0;
     G.player.reset(save.pos?.[0] ?? 10, save.pos?.[1] ?? 30, save.heading ?? 0);
     G.player.health = save.health ?? 100;
+    // Save v3 stores the NOS tank; older saves leave it full.
+    if (Number.isFinite(save.nos)) G.player.nos = Math.max(0, Math.min(100, save.nos));
     G.missions.reset(save.missionIndex ?? 0);
     if (save.weapons) {
       G.combat.restoreWeapons(save.weapons);
@@ -117,7 +123,10 @@ function applySave(save) {
     G.player.reset(10, 30, 0);
     G.missions.reset(0);
   }
-  G.wanted = 0;
+  // Save v3 restores the heat and the camera mode; older saves start clean.
+  G.wanted = save ? Math.max(0, Math.min(5, save.wanted ?? 0)) : 0;
+  G.cameraMode = save?.cameraMode === 'chase' ? 'chase' : 'orbit';
+  G.chasePos = null;
   G.cameraYaw = Math.PI;
   G.cameraDist = 10;
 }
@@ -192,6 +201,22 @@ function handleKeys() {
     G.hud.toast(G.audio.muted ? 'Sound off.' : 'Sound on.');
   }
   if (G.screen !== 'playing') return;
+  if (input.wasPressed('KeyC')) {
+    G.cameraMode = G.cameraMode === 'chase' ? 'orbit' : 'chase';
+    G.chasePos = null;
+    G.hud.toast(G.cameraMode === 'chase'
+      ? 'Chase camera — following behind the car.'
+      : 'Orbit camera — drag the mouse to look around.');
+    G.saveGame();
+  }
+  // Shop keys: only while on foot at a shop front; shops.buy refuses a
+  // purchase the player cannot afford or has not unlocked.
+  if (input.wasPressed('Digit4')) G.shops.buy('pistol');
+  if (input.wasPressed('Digit5')) G.shops.buy('smg');
+  if (input.wasPressed('Digit6')) G.shops.buy('shotgun');
+  if (input.wasPressed('Digit7')) G.shops.buy('heal');
+  if (input.wasPressed('Digit8')) G.shops.buy('nos');
+  if (input.wasPressed('KeyH')) G.shops.useSafehouse();
   if (input.wasPressed('KeyE')) {
     if (G.player.onFoot) {
       const car = G.vehicles.nearestCar(G.player.pos, 4.5);
@@ -247,16 +272,37 @@ G.step = (dt) => {
 };
 
 // Third-person camera: orbits Jax or his car, swings behind the car while driving.
+// Chase mode (C): the camera sits behind the car and follows it, looking ahead.
 function updateCamera(dt) {
   const input = G.input;
   if (input.mouseDX !== 0 || input.mouseDY !== 0) G.lastMouseAt = G.time;
-  G.cameraYaw -= input.mouseDX * 0.0032;
-  G.cameraPitch += input.mouseDY * 0.0022;
-  G.cameraPitch = Math.max(0.08, Math.min(0.85, G.cameraPitch));
+  const chase = G.cameraMode === 'chase' && !!G.player.car;
+  if (!chase) {
+    G.cameraYaw -= input.mouseDX * 0.0032;
+    G.cameraPitch += input.mouseDY * 0.0022;
+    G.cameraPitch = Math.max(0.08, Math.min(0.85, G.cameraPitch));
+  }
   G.cameraDist = Math.max(5, Math.min(16, G.cameraDist + input.wheel * 0.01));
   input.mouseDX = 0;
   input.mouseDY = 0;
   input.wheel = 0;
+
+  // Chase mode runs before the title orbit: while a screenshot scene stages,
+  // the screen is still 'title' but the car is already driving, and the
+  // chase camera must follow it through the whole scene, not just the last
+  // frame. At the real title screen Jax is never in a car, so this never
+  // fires there.
+  if (chase) {
+    const car = G.player.car;
+    const fx = Math.sin(car.heading);
+    const fz = Math.cos(car.heading);
+    const wantPos = new THREE.Vector3(car.pos.x - fx * 11, 4.2, car.pos.z - fz * 11);
+    if (!G.chasePos) G.chasePos = camera.position.clone();
+    G.chasePos.lerp(wantPos, Math.min(1, dt * 5));
+    camera.position.copy(G.chasePos);
+    camera.lookAt(car.pos.x + fx * 10, 1.6, car.pos.z + fz * 10);
+    return;
+  }
 
   if (G.screen === 'title') {
     const yaw = G.time * 0.045;

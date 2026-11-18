@@ -9,10 +9,11 @@
 //
 // The game itself is a complete open-world crime game: a procedural coastal city
 // to explore on foot and by car, traffic and pedestrians, cars to steal, a wanted
-// system with police pursuit, roadblocks and a helicopter, an eight-mission story,
-// pistol/SMG/shotgun combat, an NOS boost and a three-station car radio, a day/night
-// cycle with a HUD clock, a HUD with a live minimap, a start screen, a
-// localStorage save and synthesised sound.
+// system with police pursuit, roadblocks and a helicopter, a twelve-mission story,
+// pistol/SMG/shotgun combat, an NOS boost and a three-station car radio, a chase
+// camera, beachfront shops and a safehouse, a day/night cycle with a HUD clock, a
+// HUD with a live minimap, a start screen, a localStorage save (cash, story,
+// weapons, wanted level, camera mode, NOS) and synthesised sound.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:

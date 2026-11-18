@@ -1,8 +1,9 @@
-// The story: eight jobs for Mama Rosa, from a first errand to a final race
-// to the pier. Each mission is one objective with a glowing marker in the
-// world, a line of dialogue, and a cash reward. Progress is saved, so the chain
-// survives a reload. Job 8 is a timed run: reach the pier before Voss's
-// backup arrives, or the job fails and must be tried again.
+// The story: twelve jobs for Mama Rosa, from a first errand to the final
+// takedown of Detective Voss. Each mission is one objective with a glowing
+// marker in the world, a line of dialogue, and a cash reward. Progress is
+// saved, so the chain survives a reload. Jobs 8 and 10 are timed runs:
+// reach the target before the backup arrives, or the job fails and must be
+// tried again.
 //
 // NOTE: every target/start/deliver point sits on open ground OUTSIDE the
 // buildings' colliders (the café and the garage are solid boxes). A point inside
@@ -138,6 +139,73 @@ const MISSION_DEFS = [
     objective: 'Reach the pier before Voss’s backup arrives',
     doneLine: 'Mama Rosa: "The file is ash, Jax. Voss has nothing on us now."',
   },
+  {
+    id: 9,
+    name: 'Payday Run',
+    giver: 'Mama Rosa',
+    start: { x: 10, z: 70 },
+    pickup: { x: 104, z: -38 },
+    drop: { x: 10, z: 70 },
+    type: 'deliver',
+    reward: 2200,
+    brief: [
+      'Mama Rosa: "The garage boys are holding my cut from the east side."',
+      'Mama Rosa: "Pick it up at the garage. The police watch that street — lose them first."',
+    ],
+    objective: 'Collect the cut at the east garage',
+    doneLine: 'Mama Rosa: "Counted and clean. You are not just muscle, Jax."',
+  },
+  {
+    id: 10,
+    name: 'The Long Cut',
+    giver: 'Mama Rosa',
+    start: { x: 10, z: 70 },
+    target: { x: -104, z: 156 },
+    type: 'timed',
+    timeLimit: 90,
+    wanted: 2,
+    reward: 2500,
+    brief: [
+      'Mama Rosa: "Voss is closing the net. My safehouse on the west beach is the only clean bed tonight."',
+      'Mama Rosa: "Ninety seconds, Jax. Do not stop for anyone."',
+    ],
+    objective: 'Reach Rosa’s safehouse on the west beach',
+    doneLine: 'Mama Rosa: "Breathe, Jax. Behind this door, Voss does not exist."',
+  },
+  {
+    id: 11,
+    name: 'Harbor Revenge',
+    giver: 'Mama Rosa',
+    start: { x: 10, z: 70 },
+    target: { x: -104, z: 116 },
+    type: 'kill',
+    count: 5,
+    boss: true,
+    reward: 2800,
+    brief: [
+      'Mama Rosa: "The Lobos came back to the docks with a new boss. They took the night shift hostage."',
+      'Mama Rosa: "Five of them, Jax. Make the docks ours for good."',
+    ],
+    objective: 'Drive the Lobos out of the docks (0/5)',
+    doneLine: 'Mama Rosa: "The dock workers are free. The Lobos will not come back."',
+  },
+  {
+    id: 12,
+    name: 'The Voss Takedown',
+    giver: 'Mama Rosa',
+    start: { x: 10, z: 70 },
+    target: { x: 0, z: 172 },
+    type: 'kill',
+    count: 8,
+    boss: true,
+    reward: 4000,
+    brief: [
+      'Mama Rosa: "Voss brought her whole crew to the pier to end this tonight."',
+      'Mama Rosa: "Eight of them, Jax. End it, and Solmar is ours for good."',
+    ],
+    objective: 'Defeat Voss’s crew on the pier (0/8)',
+    doneLine: 'Mama Rosa: "It is over, Jax. Solmar is ours — all of it, for good."',
+  },
 ];
 
 export function createMissions(G) {
@@ -210,6 +278,9 @@ export function createMissions(G) {
   missions.start = () => {
     const def = currentDef();
     if (!def) return;
+    // A job already running cannot start twice: a second start would add
+    // the wanted level again and spawn a second set of enemies.
+    if (missions.stage === 'active') return;
     missions.stage = 'active';
     G.hud.dialogue(def.brief);
     if (def.type === 'goto') setTarget(def.target);
