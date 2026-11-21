@@ -11,6 +11,10 @@ import { buildCharacter } from './player.js';
 import { nearestRoadPoint, resolveCircle } from './city.js';
 import { range } from './random.js';
 
+// Callsigns for the pursuit: Solmar street names, handed out in spawn order
+// so the HUD's response list can name the unit chasing Jax.
+const CALLSIGNS = ['PALM-1', 'REEF-2', 'TIDE-3', 'SURF-4', 'DUNE-5', 'PIER-6', 'CORAL-7', 'BAY-8'];
+
 export function createPolice(G) {
   const rng = G.rng;
   const police = {
@@ -22,6 +26,34 @@ export function createPolice(G) {
     decayTimer: 0,
     arrestTimer: 0,
     blockTimer: 0,
+    spawnedCars: 0,
+  };
+
+  // The units answering the heat, nearest first: callsign, what it is doing
+  // and how far away it is. The helicopter and the roadblock ride along.
+  police.unitsForHud = () => {
+    if (G.wanted === 0) return [];
+    const target = G.player.car ? G.player.car.pos : G.player.pos;
+    const distTo = (pos) => Math.round(Math.hypot(pos.x - target.x, pos.z - target.z));
+    const units = police.cars.map((car) => ({
+      callsign: car.callsign ?? 'SPD',
+      role: 'PURSUIT',
+      dist: distTo(car.pos),
+      car,
+    }));
+    units.sort((a, b) => a.dist - b.dist);
+    if (units.length > 0) units[0].role = 'RAMMING';
+    const rows = units.map(({ callsign, role, dist }) => ({ callsign, role, dist }));
+    if (police.heli) {
+      rows.push({ callsign: 'AIR-1', role: 'AIR SUPPORT', dist: distTo(police.heli.group.position) });
+    }
+    for (const block of police.roadblocks) {
+      rows.push({ callsign: 'ROADBLOCK', role: 'SEALED ROAD', dist: distTo(block.pos) });
+    }
+    if (police.officers.length > 0) {
+      rows.push({ callsign: `FOOT ×${police.officers.length}`, role: 'ON FOOT', dist: distTo(police.officers[0].pos) });
+    }
+    return rows.slice(0, 6);
   };
 
   police.addWanted = (stars, reason) => {
@@ -43,6 +75,8 @@ export function createPolice(G) {
     });
     car.driver = 'police';
     car.speed = 10;
+    car.callsign = CALLSIGNS[police.spawnedCars % CALLSIGNS.length];
+    police.spawnedCars += 1;
     police.cars.push(car);
     return car;
   }

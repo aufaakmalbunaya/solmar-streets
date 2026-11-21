@@ -153,11 +153,28 @@ export function buildCity(G) {
   moonBall.position.set(-300, 210, -180);
   moonBall.visible = false;
   scene.add(moonBall);
+  // A gradient sky dome: a flat background colour reads as one dull band at
+  // dusk, so the sky is a big sphere painted top-to-horizon and re-painted
+  // as the light changes. It follows the camera and is never fogged.
+  const [skyCanvas, skyCtx] = makeCanvas(32, 256);
+  const skyTex = new THREE.CanvasTexture(skyCanvas);
+  skyTex.colorSpace = THREE.SRGBColorSpace;
+  const skyDome = new THREE.Mesh(
+    new THREE.SphereGeometry(880, 24, 16),
+    new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false }),
+  );
+  skyDome.renderOrder = -1;
+  scene.add(skyDome);
   // Keep the lights and lamps the day/night cycle drives.
   city.hemi = hemi;
   city.sun = sun;
   city.sunBall = sunBall;
   city.moonBall = moonBall;
+  city.skyCanvas = skyCanvas;
+  city.skyCtx = skyCtx;
+  city.skyTex = skyTex;
+  city.skyDome = skyDome;
+  city.skyKey = '';
   // The clock the HUD reads: hour, minute and a day/dusk/night label.
   city.clock = { hour: DAY.startHour, minute: 0, label: 'Day' };
 
@@ -399,6 +416,33 @@ export function buildCity(G) {
   const skyNight = new THREE.Color(0x0b1626);
   const skyDusk = new THREE.Color(0xff9a5c);
   const skyNow = new THREE.Color(PALETTE.sky);
+  // The dome's two ends: a deep top and a glowing horizon, per time of day.
+  const topDay = new THREE.Color(0x2e7cc0);
+  const topNight = new THREE.Color(0x060d1d);
+  const topDusk = new THREE.Color(0x3d2a6b);
+  const horDay = new THREE.Color(0xcfe8f5);
+  const horNight = new THREE.Color(0x16283f);
+  const horDusk = new THREE.Color(0xff7a3c);
+  const topNow = new THREE.Color(0x2e7cc0);
+  const horNow = new THREE.Color(0xcfe8f5);
+
+  // Repaint the dome's gradient when the light has moved enough to see.
+  function paintSky(top, horizon) {
+    const key = `${top.getHexString()}|${horizon.getHexString()}`;
+    if (key === city.skyKey) return;
+    city.skyKey = key;
+    // Canvas top is the zenith, the middle is eye level: the deep colour
+    // holds overhead and the glow sits only near the horizon, so the top
+    // of the frame reads as a dusk sky instead of pale haze.
+    const g = city.skyCtx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, `#${top.getHexString()}`);
+    g.addColorStop(0.45, `#${top.clone().lerp(horizon, 0.35).getHexString()}`);
+    g.addColorStop(0.62, `#${horizon.getHexString()}`);
+    g.addColorStop(1, `#${horizon.getHexString()}`);
+    city.skyCtx.fillStyle = g;
+    city.skyCtx.fillRect(0, 0, 32, 256);
+    city.skyTex.needsUpdate = true;
+  }
   const lampDay = new THREE.Color(0x554411);
   const lampNight = new THREE.Color(0xffe9a0);
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -416,9 +460,16 @@ export function buildCity(G) {
     // Sky: night blue up through day blue, then toward orange at dusk.
     skyNow.copy(skyNight).lerp(skyDay, dayFactor).lerp(skyDusk, duskFactor * 0.55);
     scene.background.copy(skyNow);
-    scene.fog.color.copy(skyNow);
-    city.hemi.intensity = 0.35 + 0.6 * dayFactor;
-    city.sun.intensity = 0.12 + 1.5 * dayFactor;
+    // The dome carries the gradient; the fog takes the horizon's colour so
+    // the far streets melt into the glow instead of a flat band.
+    topNow.copy(topNight).lerp(topDay, dayFactor).lerp(topDusk, duskFactor * 0.8);
+    horNow.copy(horNight).lerp(horDay, dayFactor).lerp(horDusk, duskFactor * 0.9);
+    paintSky(topNow, horNow);
+    city.skyDome.position.copy(G.camera.position);
+    scene.fog.color.copy(horNow);
+    // Dusk keeps a floor under the light: without it the sand reads grey.
+    city.hemi.intensity = 0.45 + 0.6 * dayFactor;
+    city.sun.intensity = 0.25 + 1.5 * dayFactor;
     // The sun arcs across the sky; the moon takes the opposite side at night.
     const az = ((hour - DAY.sunrise) / 24) * Math.PI * 2;
     city.sun.position.set(Math.cos(az) * 240, 40 + Math.max(0, elev) * 220, Math.sin(az) * 160);

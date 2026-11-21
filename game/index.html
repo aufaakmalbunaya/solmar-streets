@@ -14,7 +14,7 @@
     border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(2px); }
   #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
   #hud.hidden { display: none; }
-  #stats { position: absolute; top: 14px; left: 14px; min-width: 210px; }
+  #stats { position: absolute; top: 14px; left: 14px; min-width: 250px; }
   #health-bar { height: 12px; background: rgba(255,255,255,0.18); border-radius: 6px; overflow: hidden; margin: 6px 0 4px; }
   #health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #e5534b, #f28c4b); transition: width 0.2s; }
   #health-text { font-size: 12px; color: #c9c4b4; }
@@ -22,9 +22,32 @@
   #stars.hot { color: #ffd23c; text-shadow: 0 0 8px rgba(255, 210, 60, 0.7); }
   #cash { font-size: 22px; font-weight: 700; color: #7ddb8a; }
   #clock { font-size: 15px; font-weight: 600; margin-top: 4px; color: #f2f0e8; }
-  #objective { position: absolute; top: 14px; right: 14px; max-width: 320px; text-align: right; }
+  #rank { font-size: 13px; font-weight: 700; color: #aee2ff; margin-top: 6px; letter-spacing: 1px; }
+  #jobs-bar { height: 8px; background: rgba(255,255,255,0.18); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  #jobs-fill { height: 100%; width: 0; background: linear-gradient(90deg, #ffb347, #ffd23c); transition: width 0.2s; }
+  #response { position: absolute; top: 268px; left: 14px; min-width: 250px; display: none; }
+  #response.show { display: block; }
+  #response-title { font-size: 13px; font-weight: 700; color: #ff8a7a; letter-spacing: 1px; }
+  #response-list { font-size: 12px; margin-top: 4px; }
+  .response-row { display: flex; gap: 8px; padding: 2px 0; color: #e8e4d8; }
+  .response-row .callsign { font-weight: 700; color: #f2f0e8; min-width: 62px; }
+  .response-row .role { flex: 1; color: #ffb347; }
+  .response-row .dist { color: #c9c4b4; }
+  #objective { position: absolute; top: 14px; right: 14px; max-width: 340px; text-align: right; }
   #objective-title { font-size: 15px; font-weight: 700; color: #ffb347; }
   #objective-text { font-size: 13px; color: #e8e4d8; margin-top: 2px; }
+  #objective-next { font-size: 12px; color: #aee2ff; margin-top: 4px; }
+  #objective-reward { font-size: 12px; font-weight: 700; color: #7ddb8a; margin-top: 2px; }
+  #loadout { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 6px; }
+  .slot { width: 62px; padding: 6px 4px; text-align: center; background: rgba(10, 14, 22, 0.62);
+    border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; }
+  .slot .key { font-size: 11px; font-weight: 700; color: #ffb347; }
+  .slot .name { font-size: 12px; font-weight: 700; color: #f2f0e8; margin-top: 1px; }
+  .slot .ammo { font-size: 11px; color: #c9c4b4; margin-top: 1px; }
+  .slot.active { border-color: #ffb347; background: rgba(255, 179, 71, 0.2); box-shadow: 0 0 8px rgba(255, 179, 71, 0.35); }
+  .slot.locked { opacity: 0.4; }
+  #location { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: #ffb347; text-align: right;
+    text-transform: uppercase; text-shadow: 0 1px 4px rgba(0,0,0,0.8); margin-bottom: 6px; }
   #minimap-wrap { position: absolute; right: 14px; bottom: 14px; text-align: right; }
   #minimap { width: 200px; height: 200px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35);
     background: #2e7fb8; display: block; }
@@ -45,14 +68,22 @@
     box-shadow: 0 0 3px rgba(0,0,0,0.9); }
   #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
   #crosshair::after { left: 0; top: 10px; width: 22px; height: 2px; }
-  #toast { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
+  #toast { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
     font-size: 16px; font-weight: 600; opacity: 0; transition: opacity 0.3s; text-align: center;
     text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
   #toast.show { opacity: 1; }
   #dialogue { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
-    max-width: 640px; font-size: 16px; font-style: italic; text-align: center; opacity: 0;
-    transition: opacity 0.3s; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
-  #dialogue.show { opacity: 1; }
+    display: none; align-items: center; gap: 12px; max-width: 640px; padding: 10px 14px;
+    background: rgba(10, 14, 22, 0.72); border: 1px solid rgba(255,255,255,0.16); border-radius: 10px;
+    text-align: left; }
+  #dialogue.show { display: flex; }
+  #dialogue-face { flex: none; width: 46px; height: 46px; border-radius: 8px; background: #ffb347;
+    color: #14100a; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  #dialogue-name { font-size: 13px; font-weight: 700; color: #7ddb8a; letter-spacing: 1px; }
+  #dialogue-text { font-size: 15px; font-style: italic; color: #f2f0e8; margin-top: 1px; }
+  #car-name { font-size: 13px; font-weight: 700; color: #aee2ff; margin-top: 2px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+  #pause-stats { font-size: 14px; line-height: 1.9; color: #e8e4d8; text-align: left; margin: 10px 0 4px; }
+  #pause-stats b { color: #ffb347; }
   #hint { position: absolute; left: 14px; bottom: 14px; font-size: 12px; color: #d8d2c2;
     text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
   #damage { position: fixed; inset: 0; pointer-events: none; z-index: 6; opacity: 0;
@@ -92,14 +123,30 @@
     <div id="weapon">No weapon yet</div>
     <div id="stars">☆☆☆☆☆</div>
     <div id="clock">☀ 09:00</div>
+    <div id="rank">ROOKIE</div>
+    <div id="jobs-bar"><div id="jobs-fill"></div></div>
+  </div>
+  <div id="response" class="panel">
+    <div id="response-title">SOLMAR PD RESPONSE</div>
+    <div id="response-list"></div>
   </div>
   <div id="objective" class="panel">
     <div id="objective-title">Solmar Streets</div>
     <div id="objective-text"></div>
+    <div id="objective-next"></div>
+    <div id="objective-reward"></div>
   </div>
   <div id="minimap-wrap">
+    <div id="loadout">
+      <div class="slot" id="slot-0"><div class="key">—</div><div class="name">FISTS</div><div class="ammo">∞</div></div>
+      <div class="slot locked" id="slot-1"><div class="key">1</div><div class="name">PISTOL</div><div class="ammo">—</div></div>
+      <div class="slot locked" id="slot-2"><div class="key">2</div><div class="name">SMG</div><div class="ammo">—</div></div>
+      <div class="slot locked" id="slot-3"><div class="key">3</div><div class="name">SHOTGUN</div><div class="ammo">—</div></div>
+    </div>
+    <div id="location">DOWNTOWN</div>
     <canvas id="minimap" width="200" height="200"></canvas>
     <div id="speed">0 km/h</div>
+    <div id="car-name"></div>
     <div id="cam-mode">CAM Orbit (C)</div>
     <div id="radio">♪ SOLMAR FM</div>
     <div id="nos-bar"><div id="nos-fill"></div></div>
@@ -108,7 +155,7 @@
   <div id="crosshair"></div>
   <div id="shop-hint"></div>
   <div id="toast"></div>
-  <div id="dialogue"></div>
+  <div id="dialogue"><div id="dialogue-face">MR</div><div><div id="dialogue-name"></div><div id="dialogue-text"></div></div></div>
   <div id="hint"></div>
 </div>
 <div id="damage"></div>
@@ -133,6 +180,7 @@
   <div class="card">
     <h1>PAUSED</h1>
     <p>Solmar waits. Your progress is saved.</p>
+    <div id="pause-stats"></div>
     <button id="btn-resume" type="button">Resume</button>
   </div>
 </div>

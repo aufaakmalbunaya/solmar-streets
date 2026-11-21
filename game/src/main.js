@@ -3,9 +3,9 @@
 // and the HUD paints what is there. Screens: title, playing, paused, busted,
 // wasted and story (the story is done, free roam continues).
 //
-// ?seed=N fixes the city layout. ?shot=start|drive|chase|mission (with &seed=N)
-// stages that scene instead of running the loop, paints it twice and sets
-// window.__shotReady for a screenshot.
+// ?seed=N fixes the city layout. ?shot=start|action|drive|chase|shop|mission|pause
+// (with &seed=N) stages that scene instead of running the loop, paints it
+// twice and sets window.__shotReady for a screenshot.
 import * as THREE from 'three';
 import { DAY, STEP } from './config.js';
 import { createRandom } from './random.js';

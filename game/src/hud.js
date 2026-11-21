@@ -13,8 +13,22 @@ export function createHud(G) {
     weapon: $('weapon'),
     clock: $('clock'),
     cash: $('cash'),
+    rank: $('rank'),
+    jobsFill: $('jobs-fill'),
+    response: $('response'),
+    responseTitle: $('response-title'),
+    responseList: $('response-list'),
     objectiveTitle: $('objective-title'),
     objectiveText: $('objective-text'),
+    objectiveNext: $('objective-next'),
+    objectiveReward: $('objective-reward'),
+    loadout: [$('slot-0'), $('slot-1'), $('slot-2'), $('slot-3')],
+    location: $('location'),
+    carName: $('car-name'),
+    dialogueFace: $('dialogue-face'),
+    dialogueName: $('dialogue-name'),
+    dialogueText: $('dialogue-text'),
+    pauseStats: $('pause-stats'),
     speed: $('speed'),
     radio: $('radio'),
     nosBar: $('nos-bar'),
@@ -45,17 +59,65 @@ export function createHud(G) {
     hud.dialogueTimer = 0;
   };
 
+  // Split a "Name: ..." line into its speaker and its words; the portrait
+  // tile shows the speaker's initials.
+  function splitSpeaker(line) {
+    const at = line.indexOf(': ');
+    if (at < 0) return { name: 'MAMA ROSA', text: line };
+    return { name: line.slice(0, at).toUpperCase(), text: line.slice(at + 2) };
+  }
+
+  function initials(name) {
+    return name.split(/[^A-Z]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('') || 'J';
+  }
+
   hud.flashDamage = () => {
     hud.damage.classList.add('show');
     setTimeout(() => hud.damage.classList.remove('show'), 220);
   };
 
+  // The rank is story progress made readable: jobs done out of twelve.
+  function rankFor(jobsDone) {
+    if (jobsDone >= 12) return 'KING OF SOLMAR';
+    if (jobsDone >= 9) return 'SHOT CALLER';
+    if (jobsDone >= 6) return 'ENFORCER';
+    if (jobsDone >= 3) return 'HUSTLER';
+    if (jobsDone >= 1) return 'WHEELMAN';
+    return 'ROOKIE';
+  }
+
+  // Where Jax is standing, from the city's own landmarks: the pier past the
+  // beach, the docks west, the marina east, uptown north, downtown the grid.
+  function zoneFor(x, z) {
+    if (z >= 190) return 'Solmar Pier';
+    if (z >= 148) return 'The Beach';
+    if (x <= -78 && z >= 104) return 'The Docks';
+    if (x >= 26 && z >= 104) return 'The Marina';
+    if (z <= -78) return 'Uptown';
+    return 'Downtown';
+  }
+
+  function fillPauseStats() {
+    if (!hud.pauseStats) return;
+    const jobsDone = Math.min(12, G.missions.index);
+    const weapons = ['pistol', 'smg', 'shotgun']
+      .filter((name) => G.combat.weapons[name].unlocked)
+      .map((name) => name[0].toUpperCase() + name.slice(1))
+      .join(', ') || 'Fists';
+    hud.pauseStats.innerHTML = `Jobs done <b>${jobsDone} / 12</b> · Rank <b>${rankFor(jobsDone)}</b><br>`
+      + `Cash <b>$${G.cash.toLocaleString('en-US')}</b> · Weapons <b>${weapons}</b><br>`
+      + `Wanted <b>${'★'.repeat(G.wanted)}${'☆'.repeat(5 - G.wanted)}</b> · Health <b>${Math.max(0, Math.round(G.player.health))}</b>`;
+  }
+
   hud.showScreen = (screen) => {
+    // The game sets 'paused'; the overlay's id is 'pause'.
+    const shown = screen === 'paused' ? 'pause' : screen;
     for (const id of ['title', 'pause', 'busted', 'wasted', 'story']) {
       const overlay = $(`screen-${id}`);
-      if (overlay) overlay.classList.toggle('show', screen === id);
+      if (overlay) overlay.classList.toggle('show', shown === id);
     }
     hud.el.classList.toggle('hidden', screen === 'title' || screen === 'story');
+    if (screen === 'paused') fillPauseStats();
     if (screen === 'title') {
       const continueButton = $('btn-continue');
       if (continueButton) continueButton.style.display = G.hasSave ? '' : 'none';
@@ -75,6 +137,20 @@ export function createHud(G) {
     ctx.fillRect(0, toY(CITY.beachZ), size, toY(CITY.sandZ) - toY(CITY.beachZ));
     ctx.fillStyle = '#7fae62';
     ctx.fillRect(0, 0, size, toY(CITY.beachZ));
+    // City blocks: pale sidewalks with a greener or greyer inner lot, the
+    // same tones the ground texture paints, so the map reads as a city
+    // instead of an empty grid.
+    for (const bx of CITY.blocks) {
+      for (const bz of CITY.blocks) {
+        ctx.fillStyle = '#b8b2a4';
+        ctx.fillRect(toX(bx - 26), toY(bz - 26), 52 * scale, 52 * scale);
+        ctx.fillStyle = (bx + bz) % 104 === 0 ? '#8fae6a' : '#a9a294';
+        ctx.fillRect(toX(bx - 20), toY(bz - 20), 40 * scale, 40 * scale);
+      }
+    }
+    // The pier: a stub of boards reaching into the ocean at x 0.
+    ctx.fillStyle = '#8a6a45';
+    ctx.fillRect(toX(-3), toY(CITY.sandZ), 6 * scale, toY(210) - toY(CITY.sandZ));
     // Roads.
     ctx.fillStyle = '#3a3d42';
     for (const c of CITY.roads) {
@@ -176,7 +252,10 @@ export function createHud(G) {
       hud.dialogueTimer -= dt;
       if (hud.dialogueTimer <= 0) {
         const line = hud.dialogueLines.shift();
-        hud.dialogueEl.textContent = line;
+        const said = splitSpeaker(line);
+        hud.dialogueFace.textContent = initials(said.name);
+        hud.dialogueName.textContent = said.name;
+        hud.dialogueText.textContent = said.text;
         hud.dialogueEl.classList.add('show');
         hud.dialogueTimer = 3.6;
       }
@@ -206,11 +285,55 @@ export function createHud(G) {
     const mark = clock.label === 'Night' ? '☾' : clock.label === 'Day' ? '☀' : '◐';
     hud.clock.textContent = `${mark} ${String(clock.hour).padStart(2, '0')}:${String(clock.minute).padStart(2, '0')} ${clock.label}`;
     hud.cash.textContent = `$${G.cash.toLocaleString('en-US')}`;
+    // Rank and story progress: jobs done out of twelve.
+    const jobsDone = Math.min(12, G.missions.index);
+    hud.rank.textContent = `${rankFor(jobsDone)} · Jobs ${jobsDone}/12`;
+    hud.jobsFill.style.width = `${(jobsDone / 12) * 100}%`;
+    // The mission panel: job number, objective, the next job and the reward.
     const objective = G.missions.currentObjective();
-    hud.objectiveTitle.textContent = objective.title;
+    const def = G.missions.defs[G.missions.index] ?? null;
+    const nextDef = G.missions.defs[G.missions.index + 1] ?? null;
+    hud.objectiveTitle.textContent = def
+      ? `JOB ${def.id}/12 · ${def.name.toUpperCase()}`
+      : objective.title;
     hud.objectiveText.textContent = objective.text;
+    hud.objectiveNext.textContent = nextDef ? `NEXT: Job ${nextDef.id} — ${nextDef.name}` : '';
+    hud.objectiveNext.style.display = nextDef ? '' : 'none';
+    hud.objectiveReward.textContent = def ? `REWARD $${def.reward.toLocaleString('en-US')}` : '';
+    hud.objectiveReward.style.display = def ? '' : 'none';
+    // The weapon rack: four slots, the one in hand lit, the locked dimmed.
+    const slotDefs = [
+      { name: 'pistol', key: '1' },
+      { name: 'smg', key: '2' },
+      { name: 'shotgun', key: '3' },
+    ];
+    hud.loadout[0].classList.toggle('active', G.combat.weapon === 'fists' || !G.hasPistol);
+    hud.loadout[0].classList.remove('locked');
+    slotDefs.forEach((slot, i) => {
+      const el = hud.loadout[i + 1];
+      const state = G.combat.weapons[slot.name];
+      // The pistol slot is locked until job 1 hands the pistol over, even
+      // though the rack always lists it.
+      const locked = !state.unlocked || (slot.name === 'pistol' && !G.hasPistol);
+      const ammoEl = el.querySelector('.ammo');
+      ammoEl.textContent = locked ? '—' : `${state.ammo}`;
+      el.classList.toggle('locked', locked);
+      el.classList.toggle('active', !locked && G.combat.weapon === slot.name);
+    });
+    // The police answer: named units, what each is doing, how far away.
+    const units = G.police.unitsForHud();
+    hud.response.classList.toggle('show', units.length > 0);
+    if (units.length > 0) {
+      hud.responseTitle.textContent = `SOLMAR PD RESPONSE · ${units.length} UNIT${units.length === 1 ? '' : 'S'}`;
+      hud.responseList.innerHTML = units.map((u) => `<div class="response-row"><span class="callsign">${u.callsign}</span><span class="role">${u.role}</span><span class="dist">${u.dist} m</span></div>`).join('');
+    }
+    // Where Jax is, and what he is driving.
+    const pos = G.player.car ? G.player.car.pos : G.player.pos;
+    hud.location.textContent = zoneFor(pos.x, pos.z);
     const speed = G.player.car ? Math.abs(G.player.car.speed) * 3.6 : Math.abs(G.player.speed) * 3.6;
     hud.speed.textContent = `${Math.round(speed)} km/h`;
+    hud.carName.textContent = G.player.car ? (G.player.car.name ?? 'Car').toUpperCase() : '';
+    hud.carName.style.display = G.player.car ? '' : 'none';
     // The radio and the NOS gauge only show while driving.
     const driving = !!G.player.car;
     hud.radio.style.display = driving ? '' : 'none';
@@ -228,7 +351,10 @@ export function createHud(G) {
     hud.hint.textContent = G.player.car
       ? 'W/S drive · A/D steer · Shift NOS · Space handbrake · E leave car · Q radio · C chase cam · P pause · M mute'
       : 'WASD move · Shift sprint · E enter car · F punch · Click shoot · 1/2/3 weapons · R reload · P pause · M mute';
-    if (G.screen === 'playing') drawMinimap();
+    // The map paints whenever the HUD is up, including over the pause
+    // screen: it used to paint only while playing, so the pause shot
+    // showed an empty blue disc.
+    drawMinimap();
   };
 
   return hud;
