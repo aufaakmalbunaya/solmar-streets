@@ -100,11 +100,13 @@ function driveScene(G, seconds, wanted) {
 /**
  * Set the world to the named scene and return the screen to show over it.
  * start: the title screen over the city at golden hour.
+ * action: the pier finale (job 12) at golden hour with four wanted stars —
+ *   helicopter, pursuit cars, roadblock, officers — the hero frame.
  * drive: Jax driving his coupe through traffic.
  * chase: four wanted stars, pursuit cars, a roadblock and the helicopter,
  *   seen through the chase camera.
  * shop: Jax on foot at Big Iron Guns, the shop hint showing.
- * mission: the pier shootout (job 12), objective live with its marker.
+ * mission: the docks shootout (job 11), objective live with its marker.
  */
 export function stageShot(name, G) {
   G.player.reset(0, 20, Math.PI);
@@ -113,10 +115,43 @@ export function stageShot(name, G) {
     runSteps(G, 1);
     return driveScene(G, 5, 0);
   }
+  if (name === 'action') {
+    // The hero frame (1-start.jpg): the pier finale (job 12) at golden hour,
+    // with four wanted stars on top of it — helicopter, pursuit cars, a
+    // roadblock and officers — so the first screenshot is a mission in
+    // progress, not a menu. Jax faces the pier, back to the camera, so the
+    // helicopter tracks ahead of him, over the pier, inside the frame.
+    G.hasPistol = true;
+    G.ammo = 12;
+    G.cash = 4800;
+    G.missions.reset(11);
+    G.combat.weapon = 'smg';
+    G.combat.syncAmmo();
+    G.missions.start();
+    G.player.reset(0, 158, 0);
+    // Face the pier: camera looks from the player toward the marker.
+    const tx = G.missions.marker.position.x;
+    const tz = G.missions.marker.position.z;
+    G.cameraYaw = Math.atan2(-(tx - G.player.pos.x), -(tz - G.player.pos.z));
+    G.cameraPitch = 0.3;
+    G.cameraDist = 9;
+    // Four stars on top of the shootout: the helicopter, pursuit cars and
+    // officers all close in during the staged seconds. Three seconds puts a
+    // pursuit car alongside Jax with its light bar in frame; at 2.5 s the
+    // cars were still out of frame and a palm crowded the minimap.
+    G.police.addWanted(4, 'Voss called the whole PD — end this tonight');
+    runSteps(G, 3);
+    return 'playing';
+  }
   if (name === 'chase') {
     runSteps(G, 1);
     // Four stars: pursuit cars, a roadblock ahead and the helicopter overhead,
-    // all seen through the chase camera.
+    // all seen through the chase camera. Jax is mid-story here, pistol in hand.
+    G.hasPistol = true;
+    G.ammo = 12;
+    G.cash = 1200;
+    G.combat.weapons.pistol.ammo = 12;
+    G.combat.syncAmmo();
     G.cameraMode = 'chase';
     G.chasePos = null;
     return driveScene(G, 6, 4);
@@ -126,30 +161,40 @@ export function stageShot(name, G) {
     G.hasPistol = true;
     G.ammo = 12;
     G.cash = 1200;
+    G.combat.weapons.pistol.ammo = 12;
+    G.combat.syncAmmo();
     G.missions.reset(8);
     G.player.reset(-52, 150, Math.PI);
     G.cameraYaw = Math.PI;
     G.cameraPitch = 0.3;
     G.cameraDist = 9;
     runSteps(G, 2);
+    // The unlock toast from the mission reset is stale here; the shop itself
+    // is the message of this frame.
+    G.hud.toast('Big Iron Guns — stock up before the next job.');
     return 'playing';
   }
   if (name === 'mission') {
     G.hasPistol = true;
     G.ammo = 12;
-    G.missions.reset(11);
-    // Job 12, The Voss Takedown: the pier shootout, SMG in hand.
+    G.cash = 2800;
+    G.missions.reset(10);
+    // Job 11, Harbor Revenge: the docks shootout, SMG in hand. A different
+    // fight from the pier finale — containers and dock workers behind the
+    // Lobos, morning light instead of golden hour.
     G.combat.weapon = 'smg';
     G.combat.syncAmmo();
     G.missions.start();
-    G.player.reset(0, 140, Math.PI);
-    // Face the pier: camera looks from the player toward the marker.
+    G.player.reset(-94, 128, -2.45);
+    // Face the docks: camera looks from the player toward the marker.
     const tx = G.missions.marker.position.x;
     const tz = G.missions.marker.position.z;
     G.cameraYaw = Math.atan2(-(tx - G.player.pos.x), -(tz - G.player.pos.z));
     G.cameraPitch = 0.3;
     G.cameraDist = 9;
     runSteps(G, 3);
+    // Same reason as the shop scene: the unlock toast is stale here.
+    G.hud.toast('Harbor Revenge — five Lobos hold the docks. Clear them out.');
     return 'playing';
   }
   // start (and any unknown name): the title screen, city alive behind it.
